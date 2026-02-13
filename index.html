@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exposon Project | 人类移动中的研究</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600&family=Inter:wght@300;400;600&family=JetBrains+Mono&display=swap');
+
+        :root {
+            --apple-blue: #0066cc;
+            --apple-gray: #f5f5f7;
+            --apple-dark: #1d1d1f;
+        }
+
+        body {
+            background-color: #ffffff;
+            color: var(--apple-dark);
+            font-family: 'SF Pro Display', 'Inter', -apple-system, sans-serif;
+            scroll-behavior: smooth;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: saturate(180%) blur(20px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .hero-title {
+            background: linear-gradient(180deg, #1d1d1f 0%, #434344 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .tech-card {
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+            border: 1px solid #f0f0f2;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tech-card:hover {
+            box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+            transform: scale(1.01);
+        }
+
+        .lang-switch {
+            cursor: pointer;
+            padding: 4px 14px;
+            border-radius: 20px;
+            border: 1px solid #d2d2d7;
+            font-size: 0.75rem;
+            color: #86868b;
+            transition: all 0.3s;
+        }
+
+        .lang-switch:hover {
+            border-color: var(--apple-blue);
+            color: var(--apple-blue);
+        }
+
+        .data-map-container {
+            width: 100%;
+            height: 600px;
+            background: #ffffff;
+            border-radius: 24px;
+            overflow: hidden;
+            border: 1px solid #e5e5e7;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+            margin-bottom: 48px;
+        }
+
+        .section-padding {
+            padding-top: 120px;
+            padding-bottom: 120px;
+        }
+
+        [lang="en"] { display: none; }
+        .lang-en [lang="zh"] { display: none; }
+        .lang-en [lang="en"] { display: block; }
+
+        .btn-apple {
+            background: var(--apple-blue);
+            color: white;
+            padding: 12px 28px;
+            border-radius: 30px;
+            font-weight: 500;
+            transition: opacity 0.3s;
+        }
+        .btn-apple:hover { opacity: 0.8; }
+        
+        .philosophy-text {
+            font-weight: 300;
+            letter-spacing: 0.05em;
+            color: #6e6e73;
+        }
+    </style>
+</head>
+<body class="lang-zh">
+
+    <!-- 导航栏 -->
+    <nav class="fixed w-full z-50 glass-nav">
+        <div class="max-w-6xl mx-auto px-6 h-12 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 flex items-center justify-center">
+                    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#0066cc;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#5ac8fa;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                        <circle cx="50" cy="50" r="35" stroke="url(#logoGrad)" stroke-width="8" fill="none" opacity="0.3"/>
+                        <path d="M50 15 L50 30 M85 50 L70 50 M50 85 L50 70 M15 50 L30 50" stroke="url(#logoGrad)" stroke-width="6" stroke-linecap="round"/>
+                        <rect x="42" y="42" width="16" height="16" rx="4" fill="#1d1d1f"/>
+                    </svg>
+                </div>
+                <span class="text-sm font-semibold tracking-tight uppercase mono">Exposon</span>
+            </div>
+            
+            <div class="hidden md:flex items-center space-x-10 text-[12px] font-normal text-[#86868b]">
+                <a href="#matrix" class="hover:text-black transition-colors">Matrix</a>
+                <a href="#sense" class="hover:text-black transition-colors">Sense</a>
+                <a href="#air" class="hover:text-black transition-colors">Air</a>
+                <a href="#analysis" class="hover:text-black transition-colors">Data</a>
+                <div class="lang-switch" onclick="toggleLanguage()">EN / 中文</div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 英雄区 -->
+    <section class="relative pt-40 pb-24 px-6 text-center">
+        <div class="max-w-4xl mx-auto">
+            <h1 class="text-5xl md:text-7xl font-semibold mb-6 tracking-tight hero-title">
+                <span lang="zh">人类移动中的研究</span>
+                <span lang="en">Research in Human Motion</span>
+            </h1>
+            <p class="max-w-2xl mx-auto text-[#86868b] text-xl md:text-2xl font-normal leading-tight mb-10">
+                <span lang="zh">Exposon 旨在通过分布式边缘计算设备，构建城市尺度下的高时空分辨率环境暴露与行为轨迹矩阵。</span>
+                <span lang="en">Exposon aims to construct high-resolution environmental exposure matrices via edge computing devices in urban mobility.</span>
+            </p>
+            <div class="flex justify-center">
+                <a href="#sense" class="btn-apple text-sm px-10">
+                    <span lang="zh">了解更多</span><span lang="en">Learn More</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- 矩阵架构 -->
+    <section id="matrix" class="bg-white section-padding">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Sense 方向 -->
+                <div class="tech-card overflow-hidden flex flex-col items-center text-center p-12">
+                    <div class="w-full h-64 mb-10 flex items-center justify-center">
+                        <svg viewBox="0 0 200 200" class="w-full h-full drop-shadow-lg">
+                            <defs>
+                                <linearGradient id="senseGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#f5f5f7;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#e5e5e7;stop-opacity:1" />
+                                </linearGradient>
+                            </defs>
+                            <rect x="65" y="40" width="70" height="120" rx="15" fill="url(#senseGrad)" stroke="#d2d2d7" stroke-width="1"/>
+                            <circle cx="100" cy="75" r="22" fill="#1d1d1f"/>
+                            <circle cx="100" cy="75" r="8" fill="#434344"/>
+                            <circle cx="100" cy="75" r="40" stroke="#0066cc" stroke-width="0.5" stroke-dasharray="4 4">
+                                <animate attributeName="r" from="40" to="60" dur="3s" repeatCount="indefinite" />
+                                <animate attributeName="opacity" from="0.5" to="0" dur="3s" repeatCount="indefinite" />
+                            </circle>
+                        </svg>
+                    </div>
+                    <h3 class="text-3xl font-semibold mb-4 text-[#1d1d1f]">Exposon Sense</h3>
+                    <p class="text-[#86868b] text-lg max-w-sm leading-snug">
+                        <span lang="zh">边缘感知：面向城市骑行场景的多模态数据采集，集成视觉路况、惯性姿态与时空对齐。</span>
+                        <span lang="en">Edge Perception: Multi-modal acquisition for cycling, integrating vision, inertia, and spatiotemporal data.</span>
+                    </p>
+                </div>
+
+                <!-- Air 方向 (强化 Air 风格图标) -->
+                <div class="tech-card overflow-hidden flex flex-col items-center text-center p-12">
+                    <div class="w-full h-64 mb-10 flex items-center justify-center">
+                        <svg viewBox="0 0 200 200" class="w-full h-full drop-shadow-lg">
+                            <defs>
+                                <linearGradient id="airGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#f5f5f7;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#e5e5e7;stop-opacity:1" />
+                                </linearGradient>
+                            </defs>
+                            <!-- 设备本体 -->
+                            <rect x="55" y="50" width="90" height="100" rx="15" fill="url(#airGrad)" stroke="#d2d2d7" stroke-width="1"/>
+                            
+                            <!-- 进气格栅细节 -->
+                            <rect x="75" y="110" width="50" height="15" rx="4" fill="#1d1d1f" opacity="0.1"/>
+                            <line x1="80" y1="114" x2="120" y2="114" stroke="#86868b" stroke-width="1" stroke-linecap="round"/>
+                            <line x1="80" y1="118" x2="120" y2="118" stroke="#86868b" stroke-width="1" stroke-linecap="round"/>
+                            <line x1="80" y1="122" x2="120" y2="122" stroke="#86868b" stroke-width="1" stroke-linecap="round"/>
+
+                            <!-- 动态气流 S 曲线 -->
+                            <path d="M40 85 Q 70 70 100 85 T 160 85" fill="none" stroke="#0066cc" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="100" stroke-dashoffset="100">
+                                <animate attributeName="stroke-dashoffset" from="100" to="-100" dur="3s" repeatCount="indefinite" />
+                            </path>
+                            <path d="M40 95 Q 70 80 100 95 T 160 95" fill="none" stroke="#5ac8fa" stroke-width="1.5" stroke-linecap="round" opacity="0.6" stroke-dasharray="80" stroke-dashoffset="80">
+                                <animate attributeName="stroke-dashoffset" from="80" to="-80" dur="4s" repeatCount="indefinite" />
+                            </path>
+
+                            <!-- 颗粒物监测点 -->
+                            <circle cx="140" cy="80" r="2" fill="#0066cc">
+                                <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite" />
+                            </circle>
+                            <circle cx="150" cy="90" r="1.5" fill="#1d1d1f">
+                                <animate attributeName="opacity" values="0;1;0" dur="2.5s" repeatCount="indefinite" />
+                            </circle>
+                            <circle cx="145" cy="100" r="2" fill="#0066cc">
+                                <animate attributeName="opacity" values="0;1;0" dur="1.8s" repeatCount="indefinite" />
+                            </circle>
+                        </svg>
+                    </div>
+                    <h3 class="text-3xl font-semibold mb-4 text-[#1d1d1f]">Exposon Air</h3>
+                    <p class="text-[#86868b] text-lg max-w-sm leading-snug">
+                        <span lang="zh">环境暴露：专注于个人暴露组学（PEM），追踪 PM2.5/VOC 等空气污染指标与运动轨迹的交互。</span>
+                        <span lang="en">Environmental Exposure: Personal Exposure Monitoring (PEM) tracking air quality and interaction with tracks.</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 详细参数 - Sense -->
+    <section id="sense" class="section-padding bg-[#f5f5f7]">
+        <div class="max-w-6xl mx-auto px-6">
+            <div class="grid lg:grid-cols-2 gap-20 items-center">
+                <div>
+                    <h2 class="text-4xl font-semibold mb-8 tracking-tight">Exposon Sense</h2>
+                    <p class="text-lg text-[#424245] leading-relaxed mb-8">
+                        <span lang="zh">Exposon Sense 是一款面向城市骑行场景的边缘计算数据采集系统，集成视觉、惯性、环境及定位传感单元。该系统基于 ESP32-S3 架构，具备低功耗边缘计算能力。</span>
+                        <span lang="en">Exposon Sense is an edge computing system for urban cycling, integrating vision, inertia, and environmental sensors on ESP32-S3.</span>
+                    </p>
+                    <div class="space-y-6">
+                        <div class="flex items-start space-x-4">
+                            <i class="fas fa-camera text-blue-600 mt-1"></i>
+                            <div>
+                                <h4 class="font-semibold text-sm uppercase text-[#86868b]">视觉感知</h4>
+                                <p class="text-sm text-[#1d1d1f]">OV5640 500万像素, 155° 超广角, JPEG 硬件编码</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-4">
+                            <i class="fas fa-microchip text-blue-600 mt-1"></i>
+                            <div>
+                                <h4 class="font-semibold text-sm uppercase text-[#86868b]">惯性测量</h4>
+                                <p class="text-sm text-[#1d1d1f]">MPU6050 六轴 IMU, 采样率 1kHz, 自动冲击监测</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="aspect-square bg-white rounded-[40px] shadow-xl flex items-center justify-center border border-white overflow-hidden">
+                  <img src="image/DSC7731.png" alt="Exposon Sense 设备" class="w-full h-full object-cover">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 详细参数 - Air -->
+    <section id="air" class="section-padding bg-white">
+        <div class="max-w-6xl mx-auto px-6">
+            <div class="grid lg:grid-cols-2 gap-20 items-center">
+                <div class="order-2 lg:order-1 aspect-square bg-[#f5f5f7] rounded-[40px] flex items-center justify-center overflow-hidden">
+                    <img src="image/DSC7733.png" alt="Exposon Air 设备" class="w-full h-full object-cover">
+                   </div>
+                <div class="order-1 lg:order-2">
+                    <h2 class="text-4xl font-semibold mb-8 tracking-tight">Exposon Air</h2>
+                    <p class="text-lg text-[#424245] leading-relaxed mb-8">
+                        <span lang="zh">个人暴露组学（PEM）监测平台。集成多合一颗粒物与 VOC 传感、惯性测量与高精度定位，支持 Wi-Fi 实时回传。</span>
+                        <span lang="en">PEM platform. Integrates PM/VOC sensors with high-precision GNSS and Wi-Fi connectivity for exposure research.</span>
+                    </p>
+                    <div class="grid grid-cols-2 gap-8">
+                        <div>
+                            <h4 class="text-[12px] font-semibold text-[#86868b] uppercase mb-1">PM 传感器</h4>
+                            <p class="text-sm">激光散射原理, 1Hz</p>
+                        </div>
+                        <div>
+                            <h4 class="text-[12px] font-semibold text-[#86868b] uppercase mb-1">定位频率</h4>
+                            <p class="text-sm">NEO-8M 10Hz GPS/BD</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 样本数据展示 (全宽纵向排列) -->
+    <section id="analysis" class="section-padding bg-[#f5f5f7]">
+        <div class="max-w-5xl mx-auto px-6">
+            <h2 class="text-4xl font-semibold mb-16 text-center tracking-tight">
+                <span lang="zh">样本数据展示</span><span lang="en">Sample Data Visualization</span>
+            </h2>
+            
+            <div class="space-y-12">
+                <!-- 地图 A -->
+                <div class="data-map-container">
+    <div class="px-8 py-5 border-b border-gray-100 flex justify-between items-center bg-white">
+        <span class="text-xs font-semibold text-[#86868b] uppercase tracking-wider">Map A: 移动暴露热力图 (Mobile Exposure Heatmap)</span>
+        <span class="text-[10px] text-blue-500 font-mono">Folium Interactive</span>
+    </div>
+    <iframe src="map/mobile_heatmap_20260202.html" 
+            class="w-full h-[calc(100%-60px)] border-0" 
+            title="暴露热力图">
+    </iframe>
+</div>
+
+                <!-- 地图 B -->
+<div class="data-map-container">
+    <div class="px-8 py-5 border-b border-gray-100 flex justify-between items-center bg-white">
+        <span class="text-xs font-semibold text-[#86868b] uppercase tracking-wider">Map B: 路面异常特征分析 (Road Anomaly Detection)</span>
+        <span class="text-[10px] text-blue-500 font-mono">Folium Interactive</span>
+    </div>
+    <iframe src="map/路面异常特征分析报告.html" 
+            class="w-full h-[calc(100%-60px)] border-0" 
+            title="路面异常特征分析">
+    </iframe>
+</div>
+
+                <!-- 地图 C -->
+<div class="data-map-container">
+    <div class="px-8 py-5 border-b border-gray-100 flex justify-between items-center bg-white">
+        <span class="text-xs font-semibold text-[#86868b] uppercase tracking-wider">Map C: 路面地形与环境特征 (Terrain & Environment)</span>
+        <span class="text-[10px] text-blue-500 font-mono">Folium Interactive</span>
+    </div>
+    <iframe src="map/路面地形与环境特征分析.html" 
+            class="w-full h-[calc(100%-60px)] border-0" 
+            title="路面地形与环境特征分析">
+    </iframe>
+</div>
+
+    <!-- 页脚 -->
+    <footer class="py-20 bg-white border-t border-[#d2d2d7]">
+        <div class="max-w-6xl mx-auto px-6 text-center md:text-left">
+            <div class="grid md:grid-cols-2 gap-10 items-center">
+                <div class="text-[12px] text-[#86868b] font-normal">
+                    &copy; 2025 Exposon Project. All Scientific Rights Reserved.
+                </div>
+                <div class="flex flex-col md:flex-row md:justify-end items-center space-y-4 md:space-y-0 md:space-x-10">
+                    <div class="text-sm font-medium text-[#1d1d1f]">
+                        <i class="far fa-user mr-2 text-blue-600"></i>Shanbo Qi
+                    </div>
+                    <a href="mailto:qishanbo@outlook.com" class="text-sm text-[#1d1d1f] hover:text-blue-600 transition-colors">
+                        <i class="far fa-envelope mr-2 text-blue-600"></i>qishanbo@outlook.com
+                    </a>
+                </div>
+            </div>
+            <div class="mt-12 text-center philosophy-text text-sm md:text-base italic">
+                <span lang="zh">“用开放硬件重构城市研究的尺度。”</span>
+                <span lang="en" class="block text-xs mt-1 uppercase tracking-widest text-[#86868b]">Expanding Research via Open Hardware</span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        function toggleLanguage() {
+            const body = document.body;
+            body.classList.toggle('lang-en');
+        }
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('opacity-100', 'translate-y-0');
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('section, .data-map-container').forEach(el => {
+            el.classList.add('transition-all', 'duration-700');
+        });
+    </script>
+</body>
+</html>

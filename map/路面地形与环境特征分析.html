@@ -1,0 +1,1807 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_1c96eca5252168416d1b87198cb74ec7 {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+
+            <style>html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            </style>
+
+            <style>#map {
+                position:absolute;
+                top:0;
+                bottom:0;
+                right:0;
+                left:0;
+                }
+            </style>
+
+            <script>
+                L_NO_TOUCH = false;
+                L_DISABLE_3D = false;
+            </script>
+
+        
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.fullscreen@3.0.0/Control.FullScreen.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.fullscreen@3.0.0/Control.FullScreen.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-ant-path@1.1.2/dist/leaflet-ant-path.min.js"></script>
+</head>
+<body>
+    
+    
+            <div class="folium-map" id="map_1c96eca5252168416d1b87198cb74ec7" ></div>
+        
+    
+<div style="
+    position: fixed; bottom: 50px; right: 50px; width: 180px; height: 130px; 
+    background-color: rgba(44, 62, 80, 0.8); border:1px solid #566573; z-index:9999; 
+    font-size:12px; color: white; padding: 12px; border-radius: 8px;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+">
+    <b style="font-size:13px; color: #FDFEFE;">地形动力学识别 (BMP280)</b><br>
+    <div style="margin-top:10px;">
+        <span style='color:#EC7063'>●</span> 爬坡区间 (Energy Loss)<br>
+        <span style='color:#58D68D'>●</span> 下坡区间 (Kinetic Gain)<br>
+        <span style='color:#5DADE2'>●</span> 平路区间 (Steady State)
+    </div>
+    <hr style="margin:8px 0; border:0.5px solid #566573;">
+    <small style='color:#ABB2B9'基于气压梯度变化检测</small>
+</div>
+</body>
+<script>
+    
+    
+            var map_1c96eca5252168416d1b87198cb74ec7 = L.map(
+                "map_1c96eca5252168416d1b87198cb74ec7",
+                {
+                    center: [22.88626394444445, 113.4815629722222],
+                    crs: L.CRS.EPSG3857,
+                    ...{
+  "zoom": 15,
+  "zoomControl": true,
+  "preferCanvas": false,
+}
+
+                }
+            );
+            L.control.scale().addTo(map_1c96eca5252168416d1b87198cb74ec7);
+
+            
+
+        
+    
+            var tile_layer_65a6f1a891c26403ec13ff62be3f8ea8 = L.tileLayer(
+                "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+                {
+  "minZoom": 0,
+  "maxZoom": 20,
+  "maxNativeZoom": 20,
+  "noWrap": false,
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors \u0026copy; \u003ca href=\"https://carto.com/attributions\"\u003eCARTO\u003c/a\u003e",
+  "subdomains": "abcd",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_65a6f1a891c26403ec13ff62be3f8ea8.addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            L.control.fullscreen(
+                {
+  "position": "topleft",
+  "title": "Full Screen",
+  "titleCancel": "Exit Full Screen",
+  "forceSeparateButton": false,
+}
+            ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_fe2cf83b191fca0d0948cdf658505f3d = L.polyline.antPath(
+              [[22.884905, 113.484175], [22.885058, 113.483684]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_fe2cf83b191fca0d0948cdf658505f3d.bindTooltip(
+                `<div>
+                     时间: 10:07:47 | 气压: 1017.81hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_198470d0e61012bc5f3690bbfece8420 = L.polyline.antPath(
+              [[22.885058, 113.483684], [22.885667, 113.482462]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_198470d0e61012bc5f3690bbfece8420.bindTooltip(
+                `<div>
+                     时间: 10:08:17 | 气压: 1017.75hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_455fb607c9342f48906016129cc95f52 = L.polyline.antPath(
+              [[22.885667, 113.482462], [22.885697, 113.48245]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_455fb607c9342f48906016129cc95f52.bindTooltip(
+                `<div>
+                     时间: 10:08:47 | 气压: 1017.5hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_e7f0a9c3833801410d3f9534f7444a60 = L.polyline.antPath(
+              [[22.885697, 113.48245], [22.885719, 113.482367]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_e7f0a9c3833801410d3f9534f7444a60.bindTooltip(
+                `<div>
+                     时间: 10:09:28 | 气压: 1017.54hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_71b58640981519cdbb67137227226d58 = L.polyline.antPath(
+              [[22.885719, 113.482367], [22.886531, 113.480852]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_71b58640981519cdbb67137227226d58.bindTooltip(
+                `<div>
+                     时间: 10:09:58 | 气压: 1017.69hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_a3e20a22903d174cb011cb722ac66748 = L.polyline.antPath(
+              [[22.886531, 113.480852], [22.887352, 113.479331]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_a3e20a22903d174cb011cb722ac66748.bindTooltip(
+                `<div>
+                     时间: 10:10:28 | 气压: 1017.95hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_156f30768b8ce6c0ffd45fde0bfd7b83 = L.polyline.antPath(
+              [[22.887352, 113.479331], [22.887936, 113.479332]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_156f30768b8ce6c0ffd45fde0bfd7b83.bindTooltip(
+                `<div>
+                     时间: 10:10:58 | 气压: 1017.84hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_173c6cce88b6424400a4a1f18f00adf3 = L.polyline.antPath(
+              [[22.887936, 113.479332], [22.887638, 113.480513]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_173c6cce88b6424400a4a1f18f00adf3.bindTooltip(
+                `<div>
+                     时间: 10:11:28 | 气压: 1017.87hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_8e617b1f66c857929216283003e4a319 = L.polyline.antPath(
+              [[22.887638, 113.480513], [22.887266, 113.480609]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_8e617b1f66c857929216283003e4a319.bindTooltip(
+                `<div>
+                     时间: 10:11:58 | 气压: 1017.87hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_da105dfec9d51bb2f18e9245a28531f2 = L.polyline.antPath(
+              [[22.887266, 113.480609], [22.887859, 113.480247]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_da105dfec9d51bb2f18e9245a28531f2.bindTooltip(
+                `<div>
+                     时间: 10:14:09 | 气压: 1017.85hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_388bac0d2f231e69cb4e300499e62745 = L.polyline.antPath(
+              [[22.887859, 113.480247], [22.888692, 113.478698]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_388bac0d2f231e69cb4e300499e62745.bindTooltip(
+                `<div>
+                     时间: 10:14:38 | 气压: 1017.97hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_f5c3067b7e909fdb2565e544a32e978d = L.polyline.antPath(
+              [[22.888692, 113.478698], [22.890046, 113.478014]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_f5c3067b7e909fdb2565e544a32e978d.bindTooltip(
+                `<div>
+                     时间: 10:15:08 | 气压: 1017.86hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_b3ccc281a7fb36eebdb6b4a17d679f97 = L.polyline.antPath(
+              [[22.890046, 113.478014], [22.891161, 113.477478]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_b3ccc281a7fb36eebdb6b4a17d679f97.bindTooltip(
+                `<div>
+                     时间: 10:15:38 | 气压: 1017.67hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_24c5b567e3da77f2247713d5236e2938 = L.polyline.antPath(
+              [[22.891161, 113.477478], [22.891165, 113.478]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_24c5b567e3da77f2247713d5236e2938.bindTooltip(
+                `<div>
+                     时间: 10:16:08 | 气压: 1017.62hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_b861057e7785118635d60952ac1c740f = L.polyline.antPath(
+              [[22.891165, 113.478], [22.8911, 113.478043]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_b861057e7785118635d60952ac1c740f.bindTooltip(
+                `<div>
+                     时间: 10:16:56 | 气压: 1017.69hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_adc13e1781d3699548342e68660e8fd8 = L.polyline.antPath(
+              [[22.8911, 113.478043], [22.891106, 113.478149]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_adc13e1781d3699548342e68660e8fd8.bindTooltip(
+                `<div>
+                     时间: 10:17:28 | 气压: 1017.66hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_b5a003f0d35811b5a4f4f7ea1b55257b = L.polyline.antPath(
+              [[22.891106, 113.478149], [22.890731, 113.477464]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_b5a003f0d35811b5a4f4f7ea1b55257b.bindTooltip(
+                `<div>
+                     时间: 10:27:10 | 气压: 1017.7hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_7ecf5014e3a43cbb6531c7a829e9ed32 = L.polyline.antPath(
+              [[22.890731, 113.477464], [22.889448, 113.477149]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_7ecf5014e3a43cbb6531c7a829e9ed32.bindTooltip(
+                `<div>
+                     时间: 10:27:38 | 气压: 1017.73hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_15b473ec5a41afc05d1c79c8ec9a2c71 = L.polyline.antPath(
+              [[22.889448, 113.477149], [22.888552, 113.477794]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_15b473ec5a41afc05d1c79c8ec9a2c71.bindTooltip(
+                `<div>
+                     时间: 10:28:08 | 气压: 1017.85hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_10b0c5cd381b053862a27fc51435158d = L.polyline.antPath(
+              [[22.888552, 113.477794], [22.888181, 113.477357]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_10b0c5cd381b053862a27fc51435158d.bindTooltip(
+                `<div>
+                     时间: 10:28:38 | 气压: 1017.88hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_a36448384d02a022af213a4de0406daf = L.polyline.antPath(
+              [[22.888181, 113.477357], [22.888146, 113.477312]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_a36448384d02a022af213a4de0406daf.bindTooltip(
+                `<div>
+                     时间: 10:29:08 | 气压: 1017.84hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_a197df93adbea5e22e4e09e8ea0911be = L.polyline.antPath(
+              [[22.888146, 113.477312], [22.887936, 113.478236]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_a197df93adbea5e22e4e09e8ea0911be.bindTooltip(
+                `<div>
+                     时间: 10:31:12 | 气压: 1017.87hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_a964c3cccdc0a51b7cfdef1d128e0d4f = L.polyline.antPath(
+              [[22.887936, 113.478236], [22.887223, 113.479514]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_a964c3cccdc0a51b7cfdef1d128e0d4f.bindTooltip(
+                `<div>
+                     时间: 10:31:42 | 气压: 1017.97hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_cb1306bb383a3fafa6dfd72ea96419aa = L.polyline.antPath(
+              [[22.887223, 113.479514], [22.886392, 113.481013]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_cb1306bb383a3fafa6dfd72ea96419aa.bindTooltip(
+                `<div>
+                     时间: 10:32:12 | 气压: 1018.06hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_d87b52d059baccd692723c22371de3cf = L.polyline.antPath(
+              [[22.886392, 113.481013], [22.885701, 113.482276]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_d87b52d059baccd692723c22371de3cf.bindTooltip(
+                `<div>
+                     时间: 10:32:42 | 气压: 1017.94hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_3101712dd08b25c9873de8d442b4469d = L.polyline.antPath(
+              [[22.885701, 113.482276], [22.884999, 113.483728]],
+              {
+  "stroke": true,
+  "color": "#EC7063",
+  "weight": 6,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#EC7063",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 1200,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_3101712dd08b25c9873de8d442b4469d.bindTooltip(
+                `<div>
+                     时间: 10:33:12 | 气压: 1017.63hPa | 地形: Uphill
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_d589e9b69021955a4b9dba2c81b089e8 = L.polyline.antPath(
+              [[22.884999, 113.483728], [22.884697, 113.485066]],
+              {
+  "stroke": true,
+  "color": "#58D68D",
+  "weight": 6,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#58D68D",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 600,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_d589e9b69021955a4b9dba2c81b089e8.bindTooltip(
+                `<div>
+                     时间: 10:33:42 | 气压: 1018.04hPa | 地形: Downhill
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_196b4cde48626f396bf1cf2e0c6058ed = L.polyline.antPath(
+              [[22.884697, 113.485066], [22.884653, 113.485263]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_196b4cde48626f396bf1cf2e0c6058ed.bindTooltip(
+                `<div>
+                     时间: 10:34:12 | 气压: 1017.92hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_5795c8ceb0d78f6864cf088967ad7cbd = L.polyline.antPath(
+              [[22.884653, 113.485263], [22.884204, 113.485816]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_5795c8ceb0d78f6864cf088967ad7cbd.bindTooltip(
+                `<div>
+                     时间: 10:35:07 | 气压: 1018.0hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_57df40f11ec3daf76697bbaffff5b21a = L.polyline.antPath(
+              [[22.884204, 113.485816], [22.882871, 113.486062]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_57df40f11ec3daf76697bbaffff5b21a.bindTooltip(
+                `<div>
+                     时间: 10:35:37 | 气压: 1017.88hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_948e73589599fd262ef86cd688d7a205 = L.polyline.antPath(
+              [[22.882871, 113.486062], [22.88137, 113.486281]],
+              {
+  "stroke": true,
+  "color": "#EC7063",
+  "weight": 6,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#EC7063",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 1200,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_948e73589599fd262ef86cd688d7a205.bindTooltip(
+                `<div>
+                     时间: 10:36:07 | 气压: 1017.74hPa | 地形: Uphill
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_a1a5133af2b137494d6a342910fa4b77 = L.polyline.antPath(
+              [[22.88137, 113.486281], [22.879885, 113.486614]],
+              {
+  "stroke": true,
+  "color": "#58D68D",
+  "weight": 6,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#58D68D",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 600,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_a1a5133af2b137494d6a342910fa4b77.bindTooltip(
+                `<div>
+                     时间: 10:36:37 | 气压: 1018.07hPa | 地形: Downhill
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_419105adb1d129eb75f7f2fda734e3c4 = L.polyline.antPath(
+              [[22.879885, 113.486614], [22.878626, 113.486884]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_419105adb1d129eb75f7f2fda734e3c4.bindTooltip(
+                `<div>
+                     时间: 10:37:07 | 气压: 1017.97hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_f39fca536ae81f3f924c9f8f7c644b61 = L.polyline.antPath(
+              [[22.878626, 113.486884], [22.878365, 113.488333]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_f39fca536ae81f3f924c9f8f7c644b61.bindTooltip(
+                `<div>
+                     时间: 10:37:37 | 气压: 1018.16hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            ant_path_60d47ddd783bd5cce22bebf50d85b912 = L.polyline.antPath(
+              [[22.878365, 113.488333], [22.878624, 113.489701]],
+              {
+  "stroke": true,
+  "color": "#5DADE2",
+  "weight": 3,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "#5DADE2",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 2000,
+  "pulseColor": "#FFFFFF",
+}
+        ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+            ant_path_60d47ddd783bd5cce22bebf50d85b912.bindTooltip(
+                `<div>
+                     时间: 10:38:07 | 气压: 1017.96hPa | 地形: Flat
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_0f7033a1176b6fdde611e754ee16ae81 = L.circleMarker(
+                [22.884905, 113.484175],
+                {"bubblingMouseEvents": true, "color": "#BDC3C7", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#BDC3C7", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 0.4, "radius": 2, "stroke": true, "weight": 3}
+            ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+        var popup_1ef3afcec056dca7a700cc408a53b4af = L.popup({
+  "maxWidth": 200,
+});
+
+        
+            
+                var html_1c7c19ab23f7604e7ec9512d7b43f4ae = $(`<div id="html_1c7c19ab23f7604e7ec9512d7b43f4ae" style="width: 100.0%; height: 100.0%;">             <div style='width:150px; font-family: sans-serif; font-size:12px;'>                 <b style='color:#34495E;'>BMP280 环境监测</b><hr>                 <b>气压:</b> 1017.81 hPa<br>                 <b>温度:</b> 23.6 °C<br>                 <b>相对湿度:</b> 56.5 %             </div></div>`)[0];
+                popup_1ef3afcec056dca7a700cc408a53b4af.setContent(html_1c7c19ab23f7604e7ec9512d7b43f4ae);
+            
+        
+
+        circle_marker_0f7033a1176b6fdde611e754ee16ae81.bindPopup(popup_1ef3afcec056dca7a700cc408a53b4af)
+        ;
+
+        
+    
+    
+            var circle_marker_bd98c86ee5ec3d7aff97f3ed7a5a12a8 = L.circleMarker(
+                [22.885697, 113.48245],
+                {"bubblingMouseEvents": true, "color": "#BDC3C7", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#BDC3C7", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 0.4, "radius": 2, "stroke": true, "weight": 3}
+            ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+        var popup_da3e8faa3e3f875c2490b52c2256f604 = L.popup({
+  "maxWidth": 200,
+});
+
+        
+            
+                var html_e95428778da0105aec5abf1f6f9d3a75 = $(`<div id="html_e95428778da0105aec5abf1f6f9d3a75" style="width: 100.0%; height: 100.0%;">             <div style='width:150px; font-family: sans-serif; font-size:12px;'>                 <b style='color:#34495E;'>BMP280 环境监测</b><hr>                 <b>气压:</b> 1017.54 hPa<br>                 <b>温度:</b> 23.6 °C<br>                 <b>相对湿度:</b> 59.4 %             </div></div>`)[0];
+                popup_da3e8faa3e3f875c2490b52c2256f604.setContent(html_e95428778da0105aec5abf1f6f9d3a75);
+            
+        
+
+        circle_marker_bd98c86ee5ec3d7aff97f3ed7a5a12a8.bindPopup(popup_da3e8faa3e3f875c2490b52c2256f604)
+        ;
+
+        
+    
+    
+            var circle_marker_4be034383d7d2f700542b038c7a88d95 = L.circleMarker(
+                [22.887352, 113.479331],
+                {"bubblingMouseEvents": true, "color": "#BDC3C7", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#BDC3C7", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 0.4, "radius": 2, "stroke": true, "weight": 3}
+            ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+        var popup_172597e9b8152cb2367e19baa3306a64 = L.popup({
+  "maxWidth": 200,
+});
+
+        
+            
+                var html_b1440f4c63e06791230f8cdf2eb19033 = $(`<div id="html_b1440f4c63e06791230f8cdf2eb19033" style="width: 100.0%; height: 100.0%;">             <div style='width:150px; font-family: sans-serif; font-size:12px;'>                 <b style='color:#34495E;'>BMP280 环境监测</b><hr>                 <b>气压:</b> 1017.84 hPa<br>                 <b>温度:</b> 23.5 °C<br>                 <b>相对湿度:</b> 56.8 %             </div></div>`)[0];
+                popup_172597e9b8152cb2367e19baa3306a64.setContent(html_b1440f4c63e06791230f8cdf2eb19033);
+            
+        
+
+        circle_marker_4be034383d7d2f700542b038c7a88d95.bindPopup(popup_172597e9b8152cb2367e19baa3306a64)
+        ;
+
+        
+    
+    
+            var circle_marker_771c7e2d0b263accbc4e71b05dc6b84d = L.circleMarker(
+                [22.887266, 113.480609],
+                {"bubblingMouseEvents": true, "color": "#BDC3C7", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#BDC3C7", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 0.4, "radius": 2, "stroke": true, "weight": 3}
+            ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+        var popup_2ff186ea2d484eac37a0d3ea5a21da9b = L.popup({
+  "maxWidth": 200,
+});
+
+        
+            
+                var html_37c33577b85091fdd564819f5941019b = $(`<div id="html_37c33577b85091fdd564819f5941019b" style="width: 100.0%; height: 100.0%;">             <div style='width:150px; font-family: sans-serif; font-size:12px;'>                 <b style='color:#34495E;'>BMP280 环境监测</b><hr>                 <b>气压:</b> 1017.85 hPa<br>                 <b>温度:</b> 23.6 °C<br>                 <b>相对湿度:</b> 56.4 %             </div></div>`)[0];
+                popup_2ff186ea2d484eac37a0d3ea5a21da9b.setContent(html_37c33577b85091fdd564819f5941019b);
+            
+        
+
+        circle_marker_771c7e2d0b263accbc4e71b05dc6b84d.bindPopup(popup_2ff186ea2d484eac37a0d3ea5a21da9b)
+        ;
+
+        
+    
+    
+            var circle_marker_0874939db0c82c118c0a0d0905d19958 = L.circleMarker(
+                [22.890046, 113.478014],
+                {"bubblingMouseEvents": true, "color": "#BDC3C7", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#BDC3C7", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 0.4, "radius": 2, "stroke": true, "weight": 3}
+            ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+        var popup_6a2f7a1b33a5e13bec7169cd406ae6ef = L.popup({
+  "maxWidth": 200,
+});
+
+        
+            
+                var html_af415da28955242f5647ebfa746ca429 = $(`<div id="html_af415da28955242f5647ebfa746ca429" style="width: 100.0%; height: 100.0%;">             <div style='width:150px; font-family: sans-serif; font-size:12px;'>                 <b style='color:#34495E;'>BMP280 环境监测</b><hr>                 <b>气压:</b> 1017.67 hPa<br>                 <b>温度:</b> 23.4 °C<br>                 <b>相对湿度:</b> 56.5 %             </div></div>`)[0];
+                popup_6a2f7a1b33a5e13bec7169cd406ae6ef.setContent(html_af415da28955242f5647ebfa746ca429);
+            
+        
+
+        circle_marker_0874939db0c82c118c0a0d0905d19958.bindPopup(popup_6a2f7a1b33a5e13bec7169cd406ae6ef)
+        ;
+
+        
+    
+    
+            var circle_marker_821fc6bfe820fd50ed04691b118a4903 = L.circleMarker(
+                [22.8911, 113.478043],
+                {"bubblingMouseEvents": true, "color": "#BDC3C7", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#BDC3C7", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 0.4, "radius": 2, "stroke": true, "weight": 3}
+            ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+        var popup_03e643addb94f5f3fe9f0a8a1659a6d4 = L.popup({
+  "maxWidth": 200,
+});
+
+        
+            
+                var html_bd944553d17e7e546008f41fc09cde4f = $(`<div id="html_bd944553d17e7e546008f41fc09cde4f" style="width: 100.0%; height: 100.0%;">             <div style='width:150px; font-family: sans-serif; font-size:12px;'>                 <b style='color:#34495E;'>BMP280 环境监测</b><hr>                 <b>气压:</b> 1017.66 hPa<br>                 <b>温度:</b> 23.4 °C<br>                 <b>相对湿度:</b> 56.6 %             </div></div>`)[0];
+                popup_03e643addb94f5f3fe9f0a8a1659a6d4.setContent(html_bd944553d17e7e546008f41fc09cde4f);
+            
+        
+
+        circle_marker_821fc6bfe820fd50ed04691b118a4903.bindPopup(popup_03e643addb94f5f3fe9f0a8a1659a6d4)
+        ;
+
+        
+    
+    
+            var circle_marker_0f7b7c35f10ac783c5a09c2e329075ab = L.circleMarker(
+                [22.889448, 113.477149],
+                {"bubblingMouseEvents": true, "color": "#BDC3C7", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#BDC3C7", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 0.4, "radius": 2, "stroke": true, "weight": 3}
+            ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+        var popup_41ec275a2910c2cc69fc23f1e0403f50 = L.popup({
+  "maxWidth": 200,
+});
+
+        
+            
+                var html_281bf2556bb6b5a96e2d9ef4b581c7ae = $(`<div id="html_281bf2556bb6b5a96e2d9ef4b581c7ae" style="width: 100.0%; height: 100.0%;">             <div style='width:150px; font-family: sans-serif; font-size:12px;'>                 <b style='color:#34495E;'>BMP280 环境监测</b><hr>                 <b>气压:</b> 1017.85 hPa<br>                 <b>温度:</b> 23.1 °C<br>                 <b>相对湿度:</b> 56.4 %             </div></div>`)[0];
+                popup_41ec275a2910c2cc69fc23f1e0403f50.setContent(html_281bf2556bb6b5a96e2d9ef4b581c7ae);
+            
+        
+
+        circle_marker_0f7b7c35f10ac783c5a09c2e329075ab.bindPopup(popup_41ec275a2910c2cc69fc23f1e0403f50)
+        ;
+
+        
+    
+    
+            var circle_marker_7a452b0c0ec5afbb0f5217bf8f986d98 = L.circleMarker(
+                [22.888146, 113.477312],
+                {"bubblingMouseEvents": true, "color": "#BDC3C7", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#BDC3C7", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 0.4, "radius": 2, "stroke": true, "weight": 3}
+            ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+        var popup_9ce689d5de630a26396e3cb249c588ab = L.popup({
+  "maxWidth": 200,
+});
+
+        
+            
+                var html_bcd611abd4daa315a4898c3abc106247 = $(`<div id="html_bcd611abd4daa315a4898c3abc106247" style="width: 100.0%; height: 100.0%;">             <div style='width:150px; font-family: sans-serif; font-size:12px;'>                 <b style='color:#34495E;'>BMP280 环境监测</b><hr>                 <b>气压:</b> 1017.87 hPa<br>                 <b>温度:</b> 22.9 °C<br>                 <b>相对湿度:</b> 56.4 %             </div></div>`)[0];
+                popup_9ce689d5de630a26396e3cb249c588ab.setContent(html_bcd611abd4daa315a4898c3abc106247);
+            
+        
+
+        circle_marker_7a452b0c0ec5afbb0f5217bf8f986d98.bindPopup(popup_9ce689d5de630a26396e3cb249c588ab)
+        ;
+
+        
+    
+    
+            var circle_marker_b9f7ae0ade31186ba0266483ec7cc198 = L.circleMarker(
+                [22.886392, 113.481013],
+                {"bubblingMouseEvents": true, "color": "#BDC3C7", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#BDC3C7", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 0.4, "radius": 2, "stroke": true, "weight": 3}
+            ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+        var popup_aaaf584c2feec3b207e461d84b278062 = L.popup({
+  "maxWidth": 200,
+});
+
+        
+            
+                var html_6be4de9ba544c59530145f644806b8cf = $(`<div id="html_6be4de9ba544c59530145f644806b8cf" style="width: 100.0%; height: 100.0%;">             <div style='width:150px; font-family: sans-serif; font-size:12px;'>                 <b style='color:#34495E;'>BMP280 环境监测</b><hr>                 <b>气压:</b> 1017.94 hPa<br>                 <b>温度:</b> 23.1 °C<br>                 <b>相对湿度:</b> 56.0 %             </div></div>`)[0];
+                popup_aaaf584c2feec3b207e461d84b278062.setContent(html_6be4de9ba544c59530145f644806b8cf);
+            
+        
+
+        circle_marker_b9f7ae0ade31186ba0266483ec7cc198.bindPopup(popup_aaaf584c2feec3b207e461d84b278062)
+        ;
+
+        
+    
+    
+            var circle_marker_76f0b12476fa2f016b901e066cd49078 = L.circleMarker(
+                [22.884697, 113.485066],
+                {"bubblingMouseEvents": true, "color": "#BDC3C7", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#BDC3C7", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 0.4, "radius": 2, "stroke": true, "weight": 3}
+            ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+        var popup_74d9bdbdd33f47fc30871cb4feefe2de = L.popup({
+  "maxWidth": 200,
+});
+
+        
+            
+                var html_b0be80eaef9fee8b40f77ad1f6ff262a = $(`<div id="html_b0be80eaef9fee8b40f77ad1f6ff262a" style="width: 100.0%; height: 100.0%;">             <div style='width:150px; font-family: sans-serif; font-size:12px;'>                 <b style='color:#34495E;'>BMP280 环境监测</b><hr>                 <b>气压:</b> 1017.92 hPa<br>                 <b>温度:</b> 22.7 °C<br>                 <b>相对湿度:</b> 59.6 %             </div></div>`)[0];
+                popup_74d9bdbdd33f47fc30871cb4feefe2de.setContent(html_b0be80eaef9fee8b40f77ad1f6ff262a);
+            
+        
+
+        circle_marker_76f0b12476fa2f016b901e066cd49078.bindPopup(popup_74d9bdbdd33f47fc30871cb4feefe2de)
+        ;
+
+        
+    
+    
+            var circle_marker_03727b4eaafe33c84dde175d7db51eab = L.circleMarker(
+                [22.882871, 113.486062],
+                {"bubblingMouseEvents": true, "color": "#BDC3C7", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#BDC3C7", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 0.4, "radius": 2, "stroke": true, "weight": 3}
+            ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+        var popup_8a1b6c43ede65a0ccd0e910bf87a84a5 = L.popup({
+  "maxWidth": 200,
+});
+
+        
+            
+                var html_62bb972c2c47801023ea17e8538f9fa8 = $(`<div id="html_62bb972c2c47801023ea17e8538f9fa8" style="width: 100.0%; height: 100.0%;">             <div style='width:150px; font-family: sans-serif; font-size:12px;'>                 <b style='color:#34495E;'>BMP280 环境监测</b><hr>                 <b>气压:</b> 1017.74 hPa<br>                 <b>温度:</b> 22.1 °C<br>                 <b>相对湿度:</b> 62.9 %             </div></div>`)[0];
+                popup_8a1b6c43ede65a0ccd0e910bf87a84a5.setContent(html_62bb972c2c47801023ea17e8538f9fa8);
+            
+        
+
+        circle_marker_03727b4eaafe33c84dde175d7db51eab.bindPopup(popup_8a1b6c43ede65a0ccd0e910bf87a84a5)
+        ;
+
+        
+    
+    
+            var circle_marker_11569721b951e3e76957a48eb7aa5187 = L.circleMarker(
+                [22.878626, 113.486884],
+                {"bubblingMouseEvents": true, "color": "#BDC3C7", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#BDC3C7", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 0.4, "radius": 2, "stroke": true, "weight": 3}
+            ).addTo(map_1c96eca5252168416d1b87198cb74ec7);
+        
+    
+        var popup_177fda01fafa30b0459131a5128074c9 = L.popup({
+  "maxWidth": 200,
+});
+
+        
+            
+                var html_0554416106ebf1a60ce667e8899b9e39 = $(`<div id="html_0554416106ebf1a60ce667e8899b9e39" style="width: 100.0%; height: 100.0%;">             <div style='width:150px; font-family: sans-serif; font-size:12px;'>                 <b style='color:#34495E;'>BMP280 环境监测</b><hr>                 <b>气压:</b> 1018.16 hPa<br>                 <b>温度:</b> 22.1 °C<br>                 <b>相对湿度:</b> 61.9 %             </div></div>`)[0];
+                popup_177fda01fafa30b0459131a5128074c9.setContent(html_0554416106ebf1a60ce667e8899b9e39);
+            
+        
+
+        circle_marker_11569721b951e3e76957a48eb7aa5187.bindPopup(popup_177fda01fafa30b0459131a5128074c9)
+        ;
+
+        
+    
+</script>
+</html>
