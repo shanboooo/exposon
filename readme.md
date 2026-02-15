@@ -1,4 +1,4 @@
-![说明文字](image/logo.svg)
+<img src="image/logo.svg" width="300" alt="exposon">
 
 # ExposonSense
 **Edge-Intelligent Multi-Modal Data Acquisition Platform for Cycling Applications**
