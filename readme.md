@@ -1,4 +1,4 @@
-
+![说明文字](image/logo.svg)
 
 # ExposonSense
 **Edge-Intelligent Multi-Modal Data Acquisition Platform for Cycling Applications**
