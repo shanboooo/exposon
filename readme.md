@@ -24,9 +24,12 @@ Both systems are built on the ESP32-S3 architecture, supporting low-power edge c
 ## 子项目一：Exposon Sense | Sub-project I: Exposon Sense
 
 > **面向城市骑行场景的边缘计算数据采集系统**，集成视觉、惯性、环境及定位传感单元，实现骑行过程中多维度时空数据的同步采集与智能管理。该系统基于 ESP32-S3 架构构建，具备低功耗边缘计算能力与自适应电源管理策略，适用于移动场景下的长期环境监测与行为分析研究。
+
 <img src="image/view2.jpg" width="300" alt="Scene Understanding1">
 <img src="image/view1.jpg" width="300" alt="Scene Understanding2">
-> **Edge computing data acquisition system for urban cycling scenarios**, integrating vision, inertial, environmental, and positioning sensing units to achieve synchronized multi-dimensional spatiotemporal data acquisition and intelligent management during cycling. Built on the ESP32-S3 architecture with low-power edge computing capabilities and adaptive power management strategies, suitable for long-term environmental monitoring and behavioral analysis in mobile contexts.
+
+
+**Edge computing data acquisition system for urban cycling scenarios**, integrating vision, inertial, environmental, and positioning sensing units to achieve synchronized multi-dimensional spatiotemporal data acquisition and intelligent management during cycling. Built on the ESP32-S3 architecture with low-power edge computing capabilities and adaptive power management strategies, suitable for long-term environmental monitoring and behavioral analysis in mobile contexts.
 
 ### 硬件架构 | Hardware Architecture
 
