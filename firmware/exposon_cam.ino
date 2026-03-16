@@ -1,18 +1,16 @@
 #include "esp_camera.h"
-#include <time.h> 
-#include <sys/time.h>
 #include "FS.h"
 #include "SD_MMC.h"
 #include <Wire.h>
-#include <TinyGPSPlus.h>
+#include <TinyGPS++.h>
+#include <time.h>
 
-// --- 用户可调参数配置区 ---
-#define PHOTO_INTERVAL 5000       // 拍照间隔 (5秒)
-#define IDLE_LOG_INTERVAL 600000  // 静止状态记录间隔 (10分钟)
-#define MOVE_LOG_INTERVAL 5000    // 移动时数据记录间隔 (5秒)
-#define POWER_SAVE_DELAY 300000   // 进入省电模式等待 (5分钟)
 
-// --- 冲突修复与传感器库 ---
+
+//GPS 模块 TX → ESP32 GPIO 1 (代码中的 RX)
+//GPS 模块 RX → ESP32 GPIO 2 (代码中的 TX)
+
+// --- 传感器库冲突处理 ---
 #define sensor_t adafruit_sensor_t
 #include <Adafruit_AHTX0.h>
 #include <Adafruit_BMP280.h>
@@ -21,7 +19,7 @@
 #include <Adafruit_Sensor.h>
 #undef sensor_t 
 
-// --- 引脚定义 (ESP32-S3 Cam 常用引脚) ---
+// --- 引脚定义 ---
 #define I2C_SDA 21
 #define I2C_SCL 47
 #define GPS_RX 1
@@ -30,7 +28,7 @@
 #define SD_CLK 39
 #define SD_D0 40
 
-// --- 全局变量 ---
+// --- 全局实例 ---
 Adafruit_SSD1306 display(128, 32, &Wire, -1);
 Adafruit_AHTX0 aht;
 Adafruit_BMP280 bmp;
@@ -38,233 +36,192 @@ Adafruit_MPU6050 mpu;
 TinyGPSPlus gps;
 HardwareSerial GPS_Serial(1);
 
-unsigned long lastPhotoTime = 0, lastLogTime = 0;
-unsigned long lastSlopeCheck = 0, lastTimeSave = 0, lastShockRecord = 0;
-unsigned long lastMoveTime = 0, photoStatusTimer = 0;
-bool isMoving = false, timeSynced = false, isPowerSaving = false, showPhotoStatus = false;
-float lastPressure = 0, sdFreeGB = 0;
-String slopeStatus = "Flat";
+// --- 全局变量与计时器 ---
+char deviceID[13];
+bool sdOK = false, camOK = false, isMoving = false;
+unsigned long last1sLog = 0, last2sPic = 0, last5sSerial = 0, last1mEnv = 0;
+int displayPage = 0;
+unsigned long lastPageSwitch = 0;
 
-// ================================================================
-// --- 工具函数：时间与文件管理 ---
-// ================================================================
+float ax_sum = 0, ay_sum = 0, az_sum = 0, pres_sum = 0;
+int sample_count = 0;
 
-// 获取格式化时间字符串
-String getUTCString(bool filenameMode = false) {
-    time_t now; struct tm ti; time(&now); gmtime_r(&now, &ti);
-    char buf[32];
-    if (filenameMode) strftime(buf, sizeof(buf), "%H%M%S", &ti);
-    else strftime(buf, sizeof(buf), "%H:%M:%S", &ti);
-    return String(buf);
+// --- 工具函数：获取 UTC 时间字符串 ---
+String getUTCNow() {
+  struct tm info;
+  if (!getLocalTime(&info)) return "00:00:00";
+  char buf[20];
+  // 修复点：添加 & 符号，将结构体转换为指针
+  strftime(buf, sizeof(buf), "%H:%M:%S", &info); 
+  return String(buf);
 }
 
-// 获取每日命名的文件名 (例如 /20260215_data.csv)
-String getDailyFileName(String suffix) {
-    time_t now; struct tm ti; time(&now); gmtime_r(&now, &ti);
-    char buf[64];
-    strftime(buf, sizeof(buf), "/%Y%m%d_", &ti);
-    return String(buf) + suffix;
+// --- 创建 README 说明文件 ---
+void createReadme() {
+  if (!sdOK) return;
+  File f = SD_MMC.open("/README.TXT", FILE_WRITE);
+  if (f) {
+    f.println("=== SYSTEM INFORMATION ===");
+    f.printf("Device ID: %s\n", deviceID);
+    f.println("Generated at: " + getUTCNow());
+    f.println("\n=== DATA FORMAT (DATA.CSV) ===");
+    f.println("Format: [Time],[Type],[Data...]");
+    f.println("1. ENV:  Temp(C), Humidity(%)");
+    f.println("2. IMU:  Acc_X, Acc_Y, Acc_Z (m/s^2)");
+    f.println("3. PRES: Barometric Pressure (hPa)");
+    f.println("4. GPS:  Latitude, Longitude (Decimal)");
+    f.close();
+    Serial.println("README.TXT created.");
+  }
 }
 
-void updateSDSpace() {
-    uint64_t bytesFree = SD_MMC.totalBytes() - SD_MMC.usedBytes();
-    sdFreeGB = (float)bytesFree / 1024.0 / 1024.0 / 1024.0;
+// --- 结构化 SD 卡日志 ---
+void logToSD(String type, String data) {
+  if (!sdOK) return;
+  struct tm info; getLocalTime(&info);
+  char dir[15]; strftime(dir, sizeof(dir), "/%Y%m%d", &info);
+  if (!SD_MMC.exists(dir)) SD_MMC.mkdir(dir);
+  
+  File f = SD_MMC.open(String(dir) + "/DATA.CSV", FILE_APPEND);
+  if (f) {
+    // 精简格式：时间,类型,数据
+    f.printf("%s,%s,%s\n", getUTCNow().c_str(), type.c_str(), data.c_str());
+    f.close();
+  }
 }
-
-// ================================================================
-// --- 核心功能：相机与传感器 ---
-// ================================================================
-
-void setupCamera() {
-    camera_config_t cfg;
-    cfg.pin_pwdn = -1; cfg.pin_reset = -1; cfg.pin_xclk = 15;
-    cfg.pin_sccb_sda = 4; cfg.pin_sccb_scl = 5;
-    cfg.pin_d7 = 16; cfg.pin_d6 = 17; cfg.pin_d5 = 18; cfg.pin_d4 = 12;
-    cfg.pin_d3 = 10; cfg.pin_d2 = 8; cfg.pin_d1 = 9; cfg.pin_d0 = 11;
-    cfg.pin_vsync = 6; cfg.pin_href = 7; cfg.pin_pclk = 13;
-    cfg.xclk_freq_hz = 20000000; cfg.ledc_timer = LEDC_TIMER_0; cfg.ledc_channel = LEDC_CHANNEL_0;
-    cfg.pixel_format = PIXFORMAT_JPEG; cfg.frame_size = FRAMESIZE_UXGA; 
-    cfg.jpeg_quality = 10; cfg.fb_count = 2; cfg.grab_mode = CAMERA_GRAB_LATEST;
-    cfg.fb_location = CAMERA_FB_IN_PSRAM;
-    
-    if (esp_camera_init(&cfg) != ESP_OK) return;
-
-    sensor_t * s = esp_camera_sensor_get();
-    if (s) {
-        s->set_brightness(s, 1); s->set_contrast(s, 1); s->set_saturation(s, 1);
-        s->set_whitebal(s, 1); s->set_awb_gain(s, 1); s->set_aec2(s, 1);
-    }
-}
-
-void capturePhoto() {
-    if (isPowerSaving) return; 
-    camera_fb_t *fb = esp_camera_fb_get();
-    if (!fb) return;
-    
-    // 照片存放在 /camera 目录下，带日期和时间
-    String path = "/camera/" + getDailyFileName(getUTCString(true) + "_" + slopeStatus + ".jpg");
-    File file = SD_MMC.open(path, FILE_WRITE);
-    if (file) { 
-        file.write(fb->buf, fb->len); 
-        file.close(); 
-        showPhotoStatus = true;
-        photoStatusTimer = millis();
-    }
-    esp_camera_fb_return(fb);
-    lastPhotoTime = millis();
-}
-
-void checkShock() {
-    sensors_event_t a, g, t;
-    if(!mpu.getEvent(&a, &g, &t)) return;
-    static float history[75]; static int idx = 0; static bool bufferFull = false;
-    float currentTotal = sqrt(sq(a.acceleration.x) + sq(a.acceleration.y) + sq(a.acceleration.z));
-    
-    float runningAvg = 9.81;
-    int count = bufferFull ? 75 : idx;
-    if (count > 0) {
-        float sum = 0;
-        for(int i=0; i<count; i++) sum += history[i];
-        runningAvg = sum / (float)count;
-    }
-    
-    // 判定冲击：瞬时值超过平均值2倍且绝对差值较大
-    if (currentTotal > (runningAvg * 2.0) && abs(currentTotal - runningAvg) > 12.0) {
-        if (millis() - lastShockRecord > 1000) {
-            String fileName = getDailyFileName("shock.csv");
-            File f = SD_MMC.open(fileName, FILE_APPEND);
-            if (f) {
-                if (f.size() == 0) f.println("UTC,G_Force,Avg_G,Slope,Lat,Lng"); // 写入表头
-                f.printf("%s,%.2f,%.2f,%s,%.6f,%.6f\n", getUTCString().c_str(), currentTotal, runningAvg, slopeStatus.c_str(), gps.location.lat(), gps.location.lng());
-                f.close();
-            }
-            lastShockRecord = millis();
-        }
-    }
-    history[idx] = currentTotal; idx = (idx + 1) % 75; if (idx == 0) bufferFull = true;
-}
-
-// ================================================================
-// --- SETUP & LOOP ---
-// ================================================================
 
 void setup() {
-    Serial.begin(115200);
-    GPS_Serial.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);
-    Wire.begin(I2C_SDA, I2C_SCL);
-    
-    display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-    display.clearDisplay();
-    display.setTextColor(WHITE);
-    display.println("System Starting...");
-    display.display();
-    
-    aht.begin(); bmp.begin(0x77); mpu.begin();
-    
-    SD_MMC.setPins(SD_CLK, SD_CMD, SD_D0);
-    if (SD_MMC.begin("/sdcard", true, true)) {
-        if (!SD_MMC.exists("/camera")) SD_MMC.mkdir("/camera");
-        updateSDSpace();
-    }
-    
-    setupCamera(); 
-    lastPressure = bmp.readPressure() / 100.0;
-    lastMoveTime = millis();
+  Serial.begin(115200);
+  GPS_Serial.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);
+  Wire.begin(I2C_SDA, I2C_SCL);
+
+  // 1. 生成唯一识别码
+  uint64_t mac = ESP.getEfuseMac();
+  sprintf(deviceID, "%04X%08X", (uint16_t)(mac >> 32), (uint32_t)mac);
+
+  // 2. 初始化 OLED
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.clearDisplay();
+  display.setTextColor(WHITE);
+  display.display();
+
+  // 3. 传感器初始化
+  aht.begin();
+  if (!bmp.begin(0x77)) { if (!bmp.begin(0x76)) Serial.println("BMP280 Fail"); }
+  mpu.begin();
+
+  // 4. SD 卡初始化
+  SD_MMC.setPins(SD_CLK, SD_CMD, SD_D0);
+  if (SD_MMC.begin("/sdcard", true)) {
+    sdOK = true;
+    createReadme(); // 自动生成 README.TXT
+  }
+
+  // 5. 摄像头初始化
+  camera_config_t cfg;
+  cfg.pin_pwdn = -1; cfg.pin_reset = -1; cfg.pin_xclk = 15;
+  cfg.pin_sccb_sda = 4; cfg.pin_sccb_scl = 5;
+  cfg.pin_d7 = 16; cfg.pin_d6 = 17; cfg.pin_d5 = 18; cfg.pin_d4 = 12;
+  cfg.pin_d3 = 10; cfg.pin_d2 = 8; cfg.pin_d1 = 9; cfg.pin_d0 = 11;
+  cfg.pin_vsync = 6; cfg.pin_href = 7; cfg.pin_pclk = 13;
+  cfg.xclk_freq_hz = 12000000;
+  cfg.pixel_format = PIXFORMAT_JPEG; cfg.frame_size = FRAMESIZE_QSXGA;
+  cfg.jpeg_quality = 12; cfg.fb_count = 1; cfg.fb_location = CAMERA_FB_IN_PSRAM;
+  
+  if (esp_camera_init(&cfg) == ESP_OK) camOK = true;
+
+  configTime(0, 0, "pool.ntp.org");
 }
 
 void loop() {
-    // 1. GPS 数据解析与时间同步
-    while (GPS_Serial.available() > 0) {
-        if (gps.encode(GPS_Serial.read())) {
-            if (!timeSynced && gps.satellites.value() >= 3 && gps.date.isValid()) {
-                struct tm tm_info;
-                tm_info.tm_year = gps.date.year() - 1900;
-                tm_info.tm_mon = gps.date.month() - 1;
-                tm_info.tm_mday = gps.date.day();
-                tm_info.tm_hour = gps.time.hour();
-                tm_info.tm_min = gps.time.minute();
-                tm_info.tm_sec = gps.time.second();
-                time_t t = mktime(&tm_info);
-                struct timeval now_tv = { .tv_sec = t };
-                settimeofday(&now_tv, NULL);
-                timeSynced = true;
-            }
-        }
+  while (GPS_Serial.available() > 0) gps.encode(GPS_Serial.read());
+
+  isMoving = (gps.speed.kmph() > 2.0);
+
+  if (isMoving) {
+    sensors_event_t a, g, t_mpu;
+    mpu.getEvent(&a, &g, &t_mpu);
+    ax_sum += a.acceleration.x; ay_sum += a.acceleration.y; az_sum += a.acceleration.z;
+    pres_sum += bmp.readPressure();
+    sample_count++;
+  }
+
+  if (millis() - last1sLog >= 1000) {
+    if (isMoving && sample_count > 0) {
+      logToSD("IMU", String(ax_sum/sample_count) + "," + String(ay_sum/sample_count) + "," + String(az_sum/sample_count));
+      logToSD("PRES", String((pres_sum/sample_count) / 100.0));
+      logToSD("GPS", String(gps.location.lat(), 6) + "," + String(gps.location.lng(), 6));
+      ax_sum = ay_sum = az_sum = pres_sum = 0; sample_count = 0;
     }
-
-    unsigned long now = millis();
-    isMoving = (gps.speed.kmph() > 2.5);
-
-    // 2. 状态切换：移动 vs 省电
-    if (isMoving) {
-        lastMoveTime = now;
-        if (isPowerSaving) { 
-            setCpuFrequencyMhz(240); setupCamera(); 
-            display.ssd1306_command(SSD1306_DISPLAYON); isPowerSaving = false; 
-        }
-    } else if (now - lastMoveTime > POWER_SAVE_DELAY && !isPowerSaving) {
-        isPowerSaving = true; esp_camera_deinit();
-        display.ssd1306_command(SSD1306_DISPLAYOFF); setCpuFrequencyMhz(80);
+    
+    if (gps.time.isUpdated()) {
+      struct tm t;
+      t.tm_year = gps.date.year() - 1900; t.tm_mon = gps.date.month() - 1; t.tm_mday = gps.date.day();
+      t.tm_hour = gps.time.hour(); t.tm_min = gps.time.minute(); t.tm_sec = gps.time.second();
+      time_t now = mktime(&t);
+      struct timeval tv = { .tv_sec = now };
+      settimeofday(&tv, NULL);
     }
+    updateDisplay();
+    last1sLog = millis();
+  }
 
-    // 3. 坡度与冲击检测
-    if (now - lastSlopeCheck > 15000) {
-        float currentPressure = bmp.readPressure() / 100.0;
-        if (lastPressure > 0) {
-            float diff = currentPressure - lastPressure;
-            if (diff < -0.15) slopeStatus = "Up";
-            else if (diff > 0.15) slopeStatus = "Down";
-            else slopeStatus = "Flat";
-        }
-        lastPressure = currentPressure; lastSlopeCheck = now;
+  if (isMoving && camOK && (millis() - last2sPic >= 2000)) {
+    camera_fb_t * fb = esp_camera_fb_get();
+    if (fb) {
+      struct tm info; getLocalTime(&info);
+      char path[35]; strftime(path, sizeof(path), "/%Y%m%d/IMG_%H%M%S.jpg", &info);
+      File f = SD_MMC.open(path, FILE_WRITE);
+      if (f) { f.write(fb->buf, fb->len); f.close(); }
+      esp_camera_fb_return(fb);
     }
-    checkShock();  
+    last2sPic = millis();
+  }
 
-    // 4. 数据记录逻辑
-    if (!isPowerSaving) {
-        // --- 正常模式：5秒拍照 & 5秒记录 ---
-        if (isMoving && (now - lastPhotoTime > PHOTO_INTERVAL)) capturePhoto();
+  if (millis() - last5sSerial >= 5000) {
+    sensors_event_t h_aht, t_aht; aht.getEvent(&h_aht, &t_aht);
+    Serial.println("\n--- [SYSTEM REPORT] ---");
+    Serial.printf("DeviceID: %s | Time: %s UTC\n", deviceID, getUTCNow().c_str());
+    Serial.printf("STAT: Moving:%s, SD:%s, CAM:%s\n", isMoving ? "YES" : "NO", sdOK ? "OK" : "ERR", camOK ? "OK" : "ERR");
+    Serial.println("------------------------");
+    last5sSerial = millis();
+  }
 
-        if (now - lastLogTime > (isMoving ? MOVE_LOG_INTERVAL : IDLE_LOG_INTERVAL)) {
-            sensors_event_t h, t; aht.getEvent(&h, &t);
-            String fileName = getDailyFileName("data.csv");
-            File f = SD_MMC.open(fileName, FILE_APPEND);
-            if (f) {
-                if (f.size() == 0) f.println("UTC,Temp_C,Hum_%,Press_hPa,Slope,Lat,Lng,Speed_kmph");
-                f.printf("%s,%.2f,%.1f,%.2f,%s,%.6f,%.6f,%.1f\n", 
-                         getUTCString().c_str(), t.temperature, h.relative_humidity, 
-                         bmp.readPressure()/100.0, slopeStatus.c_str(), 
-                         gps.location.lat(), gps.location.lng(), gps.speed.kmph());
-                f.close();
-            }
-            lastLogTime = now; updateSDSpace(); 
-        }
+  if (millis() - last1mEnv >= 60000) {
+    sensors_event_t h, t; aht.getEvent(&h, &t);
+    logToSD("ENV", String(t.temperature) + "," + String(h.relative_humidity));
+    last1mEnv = millis();
+  }
 
-        // --- OLED 显示 (略去翻页逻辑的详细重复，保持简洁) ---
-        if (now % 500 < 50) { // 模拟 0.5秒刷新
-            display.clearDisplay();
-            display.setCursor(0, 0);
-            if (showPhotoStatus && (now - photoStatusTimer < 1000)) {
-                display.println("SAVING PHOTO...");
-            } else {
-                display.printf("T:%s %s\n", getUTCString().c_str(), timeSynced ? "*" : "!");
-                display.printf("SPD:%.1f %s SAT:%d\n", gps.speed.kmph(), slopeStatus.c_str(), gps.satellites.value());
-                display.printf("Free: %.2f GB", sdFreeGB);
-            }
-            display.display();
-        }
-    } else {
-        // --- 省电模式：后台记录 (10分钟) ---
-        if (now - lastLogTime > IDLE_LOG_INTERVAL) {
-            sensors_event_t h, t; aht.getEvent(&h, &t);
-            String fileName = getDailyFileName("idle.csv");
-            File f = SD_MMC.open(fileName, FILE_APPEND);
-            if (f) {
-                if (f.size() == 0) f.println("UTC,Status,Temp_C,Hum_%");
-                f.printf("%s,IDLE,%.2f,%.1f\n", getUTCString().c_str(), t.temperature, h.relative_humidity); 
-                f.close(); 
-            }
-            lastLogTime = now;
-        }
-    }
+  if (millis() - lastPageSwitch > 3000) {
+    displayPage = (displayPage + 1) % 3;
+    lastPageSwitch = millis();
+  }
+}
+
+void updateDisplay() {
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  switch (displayPage) {
+    case 0:
+      display.printf("UID: %s\n", deviceID);
+      display.printf("UTC: %s\n", getUTCNow().c_str());
+      display.printf("MOVING: %s\n", isMoving ? "YES" : "NO");
+      display.printf("SD:%s  CAM:%s", sdOK ? "OK" : "ERR", camOK ? "OK" : "ERR");
+      break;
+    case 1:
+      display.printf("SAT: %d SPD: %.1f\n", gps.satellites.value(), gps.speed.kmph());
+      display.printf("LAT: %.5f\n", gps.location.lat());
+      display.printf("LNG: %.5f\n", gps.location.lng());
+      display.printf("ALT: %.1fm", gps.altitude.meters());
+      break;
+    case 2:
+      sensors_event_t h, t; aht.getEvent(&h, &t);
+      display.printf("TEMP: %.1f C\n", t.temperature);
+      display.printf("HUMI: %.1f %%\n", h.relative_humidity);
+      display.printf("PRES: %.1f hPa\n", bmp.readPressure() / 100.0);
+      display.printf("V: 5MP-READY");
+      break;
+  }
+  display.display();
 }
