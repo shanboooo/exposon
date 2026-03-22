@@ -4,206 +4,303 @@
 #include <Adafruit_Sensor.h>
 #include <TinyGPS++.h>
 #include <SPI.h>
-#include <SD.h>
-#include <Wire.h>
+#include "SdFat.h"       // 必须安装 SdFat 库
+#include <Wire.h> 
+#include <time.h>
+#include <sys/time.h>
 
-// ================= 1. 系统配置中心 =================
-
-#define TIMEZONE_OFFSET     8      // 时区设置 (北京时间 +8)
-#define INTERVAL_DISPLAY    2000   // 屏幕刷新/切换页面的间隔 (ms)
-#define INTERVAL_LOG        10000  // SD卡记录间隔 (ms)
-#define SCREEN_TIMEOUT      60000  // 屏幕自动熄灭时间 (ms, 1分钟)
-
-// --- 引脚定义 ---
+// ================= 1. 引脚定义 =================
 #define I2C0_SDA    15 
 #define I2C0_SCL    16
 #define I2C1_SDA    42
 #define I2C1_SCL    41
-
 #define SD_SCK      6
 #define SD_MISO     5
 #define SD_MOSI     7
 #define SD_CS       4
-
 #define GPS_RX      38
 #define GPS_TX      39
+#define AIR_RX      17
+#define AIR_TX      18 
 #define VGNSS_CTRL  3  
 
-#define AIR_RX      17 
-#define AIR_TX      18 
-
-#define SCREEN_ADDRESS 0x3C 
+// OLED 参数
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 32
+#define OLED_RESET    -1
 
 // ================= 2. 对象初始化 =================
-
 TwoWire I2C_OLED = TwoWire(0);
 TwoWire I2C_MPU  = TwoWire(1);
 
-Adafruit_SSD1306 display(128, 32, &I2C_OLED, -1);
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &I2C_OLED, OLED_RESET);
 Adafruit_MPU6050 mpu;
 TinyGPSPlus gps;
-SPIClass *sdSPI = NULL;
+
+// SdFat 核心对象：SdFs 自动兼容 FAT16/FAT32/exFAT
+SdFs sd;
+FsFile f_log;
+SPIClass sdSPI(HSPI);
+
 HardwareSerial GPS_Serial(1);
 HardwareSerial AirSerial(2);
 
-// ================= 3. 数据结构 =================
-
+// ================= 3. 全局变量 =================
 struct {
-  uint16_t voc = 0;
-  uint16_t pm25 = 0;
-  uint16_t pm10 = 0;
-  float temp = 0.0;
-  float humi = 0.0;
+  uint16_t pm25 = 0, pm10 = 0, voc = 0;
+  float temp = 0.0, humi = 0.0;
 } airData;
+
+// 用于 1 分钟加权计算的累加器
+struct {
+  uint32_t pm25Sum = 0, pm10Sum = 0, vocSum = 0;
+  float tempSum = 0.0, humiSum = 0.0;
+  uint32_t sampleCount = 0;
+} airAggr;
 
 struct {
   float ax = 0, ay = 0, az = 0;
-} motion;
+} motionData;
 
-unsigned long lastActivityTime = 0;
-bool isScreenOn = true;
-bool isPageOne = true;
+char deviceID[13];
+bool sdOK = false, isMoving = false, timeSynced = false;
+int displayPage = 0;
+float sdFreeGB = 0.0; 
 
-// ================= 4. 辅助工具函数 =================
+unsigned long last1sTask = 0;
+unsigned long last1mTask = 0; 
+unsigned long lastTimeSync = 0;
+unsigned long lastPageSwitch = 0;
 
-String getLocalTimeString() {
-  if (!gps.time.isValid()) return "00:00:00";
-  int hour = gps.time.hour() + TIMEZONE_OFFSET;
-  if (hour >= 24) hour -= 24;
-  char buf[10];
-  sprintf(buf, "%02d:%02d:%02d", hour, gps.time.minute(), gps.time.second());
+// ================= 4. 辅助与存储函数 =================
+
+// 修正后的容量计算函数
+void updateSDSpace() {
+  if (!sdOK) return;
+  
+  // 使用修正后的函数名: freeClusterCount()
+  uint32_t freeClusters = sd.freeClusterCount();
+  
+  if (freeClusters != (uint32_t)-1) {
+    // 剩余字节 = 剩余簇数 * 每簇扇区数 * 512 字节
+    uint64_t freeBytes = (uint64_t)freeClusters * sd.sectorsPerCluster() * 512;
+    sdFreeGB = (float)freeBytes / (1024.0 * 1024.0 * 1024.0);
+  }
+}
+
+String getUTCNow() {
+  struct tm info;
+  if (!getLocalTime(&info) || info.tm_year < 120) return "WAIT GPS..."; 
+  char buf[20];
+  strftime(buf, sizeof(buf), "%H:%M:%S", &info);
   return String(buf);
 }
 
-String getLocalDateString() {
-  if (!gps.date.isValid()) return "2026-01-01";
-  char buf[15];
-  sprintf(buf, "%04d-%02d-%02d", gps.date.year(), gps.date.month(), gps.date.day());
-  return String(buf);
+void syncTimeViaGPS() {
+  if (gps.date.isValid() && gps.date.year() >= 2024 && gps.time.isValid()) {
+    struct tm t = {0};
+    t.tm_year = gps.date.year() - 1900;
+    t.tm_mon  = gps.date.month() - 1;
+    t.tm_mday = gps.date.day();
+    t.tm_hour = gps.time.hour();
+    t.tm_min  = gps.time.minute();
+    t.tm_sec  = gps.time.second();
+    time_t now = mktime(&t);
+    struct timeval tv = { .tv_sec = now };
+    settimeofday(&tv, NULL);
+    timeSynced = true;
+    lastTimeSync = millis();
+  }
+}
+
+void logToSD(String type, String data) {
+  if (!sdOK || !timeSynced) return; 
+  struct tm info;
+  if (!getLocalTime(&info)) return;
+
+  char dir[15];
+  strftime(dir, sizeof(dir), "/%Y%m%d", &info);
+  if (!sd.exists(dir)) sd.mkdir(dir);
+
+  char fileName[40];
+  snprintf(fileName, sizeof(fileName), "%s/%s_%02d.CSV", dir, type.c_str(), info.tm_hour);
+  
+  // 以读写/创建/追加模式打开文件
+  if (f_log.open(fileName, O_RDWR | O_CREAT | O_AT_END)) {
+    char tStr[15];
+    strftime(tStr, sizeof(tStr), "%H:%M:%S", &info);
+    f_log.printf("%s,%s\n", tStr, data.c_str());
+    f_log.close();
+  }
+}
+
+// ================= 5. 传感器读取 =================
+
+void readMPU() {
+  sensors_event_t a, g, temp;
+  mpu.getEvent(&a, &g, &temp);
+  motionData.ax = a.acceleration.x;
+  motionData.ay = a.acceleration.y;
+  motionData.az = a.acceleration.z;
 }
 
 void handleAirSensor() {
-  if (AirSerial.available() >= 17) {
-    if (AirSerial.peek() != 0x3C) { AirSerial.read(); return; }
+  while (AirSerial.available() >= 17) {
+    if (AirSerial.peek() != 0x3C) { AirSerial.read(); continue; }
     uint8_t buf[17];
     AirSerial.readBytes(buf, 17);
-
-    uint8_t checksum = 0;
-    for (int i = 0; i < 16; i++) checksum += buf[i];
-
-    if (checksum == buf[16]) {
-      // 按照协议：B1-B2头，B3-B6是CO2/甲醛(跳过)，B7-B16是我们需要的数据
+    uint8_t sum = 0;
+    for (int i = 0; i < 16; i++) sum += buf[i];
+    
+    if (sum == buf[16]) {
+      // 更新实时数据用于显示
       airData.voc  = (buf[6] << 8) | buf[7];
       airData.pm25 = (buf[8] << 8) | buf[9];
       airData.pm10 = (buf[10] << 8) | buf[11];
-      
-      float t_int = (buf[12] & 0x7F);
-      float t_dec = (float)buf[13] / 10.0;
-      airData.temp = t_int + t_dec;
-      if (buf[12] & 0x80) airData.temp = -airData.temp;
-      airData.humi = (float)buf[14] + (float)buf[15] / 10.0;
+      float t_val = (buf[12] & 0x7F) + (float)buf[13] / 10.0;
+      if (buf[12] & 0x80) t_val = -t_val;
+      airData.temp = t_val;
+      airData.humi = buf[14] + (float)buf[15] / 10.0;
 
-      lastActivityTime = millis(); 
+      // 累加数据用于 1 分钟均值
+      airAggr.pm25Sum += airData.pm25;
+      airAggr.pm10Sum += airData.pm10;
+      airAggr.vocSum  += airData.voc;
+      airAggr.tempSum += airData.temp;
+      airAggr.humiSum += airData.humi;
+      airAggr.sampleCount++;
     }
   }
 }
 
-// ================= 5. SD卡每日日志逻辑 =================
-
-void logToSD() {
-  if (!gps.date.isValid()) return; // 没有日期暂不记录，防止文件名错误
-
-  String fileName = "/" + getLocalDateString() + ".csv";
-  
-  // 检查文件是否存在，如果不存在则创建并写入表头
-  if (!SD.exists(fileName)) {
-    File file = SD.open(fileName, FILE_WRITE);
-    if (file) {
-      file.println("Date,Time,PM2.5(ug/m3),PM10(ug/m3),VOC(ug/m3),Temp(C),Humi(%),Ax,Ay,Az");
-      file.close();
-    }
-  }
-
-  // 追加数据
-  File file = SD.open(fileName, FILE_APPEND);
-  if (file) {
-    file.print(getLocalDateString()); file.print(",");
-    file.print(getLocalTimeString()); file.print(",");
-    file.printf("%d,%d,%d,%.1f,%.1f,%.2f,%.2f,%.2f\n", 
-                airData.pm25, airData.pm10, airData.voc, 
-                airData.temp, airData.humi, 
-                motion.ax, motion.ay, motion.az);
-    file.close();
-  }
-}
-
-// ================= 6. 核心逻辑 =================
+// ================= 6. 界面显示 =================
 
 void updateDisplay() {
-  // 省电逻辑：超时关闭屏幕
-  if (SCREEN_TIMEOUT > 0 && (millis() - lastActivityTime > SCREEN_TIMEOUT)) {
-    if (isScreenOn) { display.ssd1306_command(SSD1306_DISPLAYOFF); isScreenOn = false; }
-    return;
-  } else {
-    if (!isScreenOn) { display.ssd1306_command(SSD1306_DISPLAYON); isScreenOn = true; }
-  }
-
   display.clearDisplay();
   display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
   display.setCursor(0, 0);
-  display.printf("%s %s", gps.location.isValid() ? "GPS:OK" : "GPS:...", getLocalTimeString().c_str());
-  display.drawLine(0, 9, 128, 9, SSD1306_WHITE);
 
-  display.setCursor(0, 12);
-  if (isPageOne) {
-    display.printf("PM2.5: %-4d VOC: %-4d", airData.pm25, airData.voc);
-    display.setCursor(0, 22);
-    display.printf("T:%.1fC  H:%.1f%%", airData.temp, airData.humi);
-  } else {
-    display.printf("PM10 : %-4d", airData.pm10);
-    display.setCursor(0, 22);
-    display.printf("Acc: %.1f, %.1f, %.1f", motion.ax, motion.ay, motion.az);
+  switch (displayPage) {
+    case 0: { // 系统概览
+      display.printf("ID:%s\n", deviceID);
+      display.printf("UTC:%s\n", getUTCNow().c_str());
+      if (sdOK) {
+        display.printf("Free:%.2f GB\n", sdFreeGB);
+      } else {
+        display.println("SD: ERROR");
+      }
+      display.printf("Mode:%s", isMoving ? "MOVING" : "STATIC");
+      break;
+    }
+    case 1: { // 定位信息
+      display.printf("Sats:%d Spd:%.1f km/h\n", gps.satellites.value(), gps.speed.kmph());
+      display.printf("Lat:%.4f\n", gps.location.lat());
+      display.printf("Lng:%.4f\n", gps.location.lng());
+      display.printf("Sync:%s", timeSynced ? "OK" : "WAIT");
+      break;
+    }
+    case 2: { // 环境质量
+      display.printf("PM2.5:%d  PM10:%d\n", airData.pm25, airData.pm10);
+      display.printf("VOC:%d\n", airData.voc);
+      display.printf("T:%.1fC  H:%.1f%%\n", airData.temp, airData.humi);
+      break;
+    }
   }
   display.display();
-  isPageOne = !isPageOne;
 }
+
+// ================= 7. Setup & Loop =================
 
 void setup() {
   Serial.begin(115200);
+  uint64_t mac = ESP.getEfuseMac();
+  sprintf(deviceID, "%08X", (uint32_t)mac);
+
   I2C_OLED.begin(I2C0_SDA, I2C0_SCL, 400000); 
   I2C_MPU.begin(I2C1_SDA, I2C1_SCL, 400000); 
 
-  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) Serial.println("OLED Error");
-  if (!mpu.begin(0x68, &I2C_MPU)) Serial.println("MPU Error");
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.clearDisplay(); display.display();
 
-  sdSPI = new SPIClass(HSPI);
-  sdSPI->begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
-  if(!SD.begin(SD_CS, *sdSPI)) Serial.println("SD Error");
+  if (mpu.begin(0x68, &I2C_MPU)) {
+    mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+  }
 
-  GPS_Serial.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX); 
+  // 初始化 SPI 和 SdFat (支持 exFAT)
+  sdSPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
+  // 使用 SdSpiConfig 配置，16MHz 对大容量卡兼容性最好
+  if (sd.begin(SdSpiConfig(SD_CS, SHARED_SPI, SD_SCK_MHZ(16), &sdSPI))) {
+    sdOK = true;
+    updateSDSpace(); 
+  } else {
+    Serial.println("SD Card Error (exFAT?)");
+  }
+
+  GPS_Serial.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);
   AirSerial.begin(9600, SERIAL_8N1, AIR_RX, AIR_TX);
   
   pinMode(VGNSS_CTRL, OUTPUT);
   digitalWrite(VGNSS_CTRL, HIGH);
-  lastActivityTime = millis();
+  
+  struct timeval tv = { .tv_sec = 0 };
+  settimeofday(&tv, NULL);
 }
 
 void loop() {
+  // 处理传感器流
   while (GPS_Serial.available() > 0) gps.encode(GPS_Serial.read());
   handleAirSensor();
 
-  static unsigned long lastDisp = 0;
-  if (millis() - lastDisp >= INTERVAL_DISPLAY) {
-    sensors_event_t a, g, t;
-    mpu.getEvent(&a, &g, &t);
-    motion.ax = a.acceleration.x; motion.ay = a.acceleration.y; motion.az = a.acceleration.z;
-    updateDisplay();
-    lastDisp = millis();
+  // 时间同步
+  if (!timeSynced || (millis() - lastTimeSync >= 600000)) {
+    syncTimeViaGPS();
   }
-  
-  static unsigned long lastLog = 0;
-  if (millis() - lastLog >= INTERVAL_LOG) {
-    logToSD();
-    lastLog = millis();
+
+  // 状态判断
+  isMoving = (gps.speed.kmph() > 1.5);
+
+  // 1 秒高频任务
+  if (millis() - last1sTask >= 1000) {
+    if (isMoving && timeSynced) {
+      readMPU();
+      String imuStr = String(motionData.ax) + "," + String(motionData.ay) + "," + String(motionData.az);
+      String gpsStr = String(gps.location.lat(), 6) + "," + String(gps.location.lng(), 6) + "," + String(gps.speed.kmph(), 1);
+      logToSD("IMU", imuStr);
+      logToSD("GPS", gpsStr);
+    }
+    last1sTask = millis();
+  }
+
+  // 1 分钟加权存储任务
+  if (millis() - last1mTask >= 60000) {
+    if (timeSynced && airAggr.sampleCount > 0) {
+      // 计算这一分钟的平均值
+      float avgPM25 = (float)airAggr.pm25Sum / airAggr.sampleCount;
+      float avgPM10 = (float)airAggr.pm10Sum / airAggr.sampleCount;
+      float avgVOC  = (float)airAggr.vocSum / airAggr.sampleCount;
+      float avgTemp = airAggr.tempSum / airAggr.sampleCount;
+      float avgHumi = airAggr.humiSum / airAggr.sampleCount;
+
+      String airStr = String(avgPM25, 1) + "," + String(avgPM10, 1) + "," + 
+                      String(avgVOC, 1) + "," + String(avgTemp, 1) + "," + String(avgHumi, 1);
+      logToSD("AIR", airStr);
+
+      // 重置累加器
+      airAggr.pm25Sum = 0; airAggr.pm10Sum = 0; airAggr.vocSum = 0;
+      airAggr.tempSum = 0; airAggr.humiSum = 0;
+      airAggr.sampleCount = 0;
+      
+      // 更新容量显示
+      updateSDSpace();
+    }
+    last1mTask = millis();
+  }
+
+  // 4 秒 UI 轮播
+  if (millis() - lastPageSwitch >= 4000) {
+    updateDisplay();
+    displayPage = (displayPage + 1) % 3;
+    lastPageSwitch = millis();
   }
 }
