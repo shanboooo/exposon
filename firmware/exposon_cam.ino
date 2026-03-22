@@ -15,7 +15,7 @@
 #include <Adafruit_Sensor.h>
 #undef sensor_t 
 
-// --- 引脚定义 ---
+// --- 引脚定义 (保持原样) ---
 #define I2C_SDA 21
 #define I2C_SCL 47
 #define GPS_RX 1
@@ -42,34 +42,45 @@ unsigned long lastPageSwitch = 0;
 float ax_sum = 0, ay_sum = 0, az_sum = 0, pres_sum = 0;
 int sample_count = 0;
 
+// --- 工具函数：获取 SD 卡剩余容量 (GB) ---
+String getSDFreeGB() {
+  if (!sdOK) return "ERR";
+  
+  // 获取总字节和已用字节
+  uint64_t totalBytes = SD_MMC.totalBytes();
+  uint64_t usedBytes = SD_MMC.usedBytes();
+  uint64_t freeBytes = totalBytes - usedBytes;
+
+  // 转换为 GB (1024 * 1024 * 1024 = 1073741824)
+  double freeGB = (double)freeBytes / 1073741824.0;
+  
+  return String(freeGB, 1) + "G"; 
+}
+
 // --- 工具函数：GPS 时间有效性检查 ---
 bool isDateValid() {
-  // 只有年份 >= 2026 才认为 GPS 已经获取到可靠日期（防止 1970/2002 错误日期文件夹）
   return (gps.date.isValid() && gps.date.year() >= 2026);
 }
 
 String getUTCNow() {
   struct tm info;
-  // 如果年份还没到 2026，说明系统时钟还没同步
   if (!getLocalTime(&info) || info.tm_year < 126) return "WAITING..."; 
   char buf[20];
   strftime(buf, sizeof(buf), "%H:%M:%S", &info);
   return String(buf);
 }
 
-// --- 分文件、分小时、分类型存储逻辑 ---
+// --- 存储逻辑 ---
 void logToSD(String type, String data) {
   if (!sdOK || !timeSynced) return; 
 
   struct tm info;
   if (!getLocalTime(&info)) return;
 
-  // 创建日期文件夹: /YYYYMMDD
   char dir[15];
   strftime(dir, sizeof(dir), "/%Y%m%d", &info);
   if (!SD_MMC.exists(dir)) SD_MMC.mkdir(dir);
 
-  // 构造文件名: /YYYYMMDD/TYPE_HH.CSV
   char fileName[40];
   snprintf(fileName, sizeof(fileName), "%s/%s_%02d.CSV", dir, type.c_str(), info.tm_hour);
   
@@ -89,6 +100,35 @@ void createReadme() {
     f.println("Mode: Separate Files per Hour/Type");
     f.close();
   }
+}
+
+// --- OLED 显示更新 ---
+void updateDisplay() {
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  switch (displayPage) {
+    case 0:
+      display.printf("ID: %s\n", deviceID);
+      display.printf("UTC: %s\n", getUTCNow().c_str());
+      display.printf("GPS: %s\n", timeSynced ? "LOCKED" : "WAIT FIX...");
+      // 此处显示 SD 卡剩余 GB
+      display.printf("SD:%s  CAM:%s", getSDFreeGB().c_str(), camOK ? "OK" : "ERR");
+      break;
+    case 1:
+      display.printf("SAT: %d  SPD:%.1f\n", gps.satellites.value(), gps.speed.kmph());
+      display.printf("LAT: %.4f\n", gps.location.lat());
+      display.printf("LNG: %.4f\n", gps.location.lng());
+      display.printf("ALT: %.0fm", gps.altitude.meters());
+      break;
+    case 2:
+      sensors_event_t h_aht, t_aht; aht.getEvent(&h_aht, &t_aht);
+      display.printf("TEMP: %.1f C\n", t_aht.temperature);
+      display.printf("HUMI: %.1f %%\n", h_aht.relative_humidity);
+      display.printf("PRES: %.1f hPa\n", bmp.readPressure() / 100.0);
+      display.print("REC: SEPARATE MODE");
+      break;
+  }
+  display.display();
 }
 
 void setup() {
@@ -134,7 +174,6 @@ void setup() {
     Serial.println("Camera Init Failed!");
   }
 
-  // 初始将系统时间归零（强制进入 WAITING 状态）
   struct timeval tv = { .tv_sec = 0 };
   settimeofday(&tv, NULL);
 }
@@ -142,7 +181,7 @@ void setup() {
 void loop() {
   while (GPS_Serial.available() > 0) gps.encode(GPS_Serial.read());
 
-  // --- 时间同步逻辑 ---
+  // --- 时间同步 ---
   if (!timeSynced && isDateValid()) {
     struct tm t;
     t.tm_year = gps.date.year() - 1900;
@@ -154,12 +193,9 @@ void loop() {
     time_t now = mktime(&t);
     struct timeval tv = { .tv_sec = now };
     settimeofday(&tv, NULL);
-    
     timeSynced = true; 
-    Serial.println("\n[SYSTEM] >>> Time Synced via GPS. Recording UNLOCKED. <<<");
   }
 
-  // --- 运动检测 ---
   isMoving = (gps.speed.kmph() > 1.5);
 
   if (isMoving) {
@@ -170,13 +206,12 @@ void loop() {
     sample_count++;
   }
 
-  // --- [1秒任务] 记录运动数据 (IMU/GPS/PRES) ---
+  // --- [1秒任务] ---
   if (millis() - last1sLog >= 1000) {
     if (isMoving && sample_count > 0 && timeSynced) {
       logToSD("IMU", String(ax_sum/sample_count) + "," + String(ay_sum/sample_count) + "," + String(az_sum/sample_count));
       logToSD("PRE", String((pres_sum/sample_count) / 100.0));
       logToSD("GPS", String(gps.location.lat(), 6) + "," + String(gps.location.lng(), 6) + "," + String(gps.speed.kmph(), 1));
-      
       ax_sum = ay_sum = az_sum = pres_sum = 0; sample_count = 0;
     }
     updateDisplay();
@@ -196,53 +231,26 @@ void loop() {
     last2sPic = millis();
   }
 
-  // --- [1分钟任务] 环境数据 (ENV) ---
+  // --- [1分钟任务] 环境 ---
   if (timeSynced && (millis() - last1mEnv >= 60000)) {
     sensors_event_t h_aht, t_aht; aht.getEvent(&h_aht, &t_aht);
     logToSD("ENV", String(t_aht.temperature, 1) + "," + String(h_aht.relative_humidity, 1));
     last1mEnv = millis();
   }
 
-  // --- [5秒任务] 串口综合报告 (核心改动在这里) ---
+  // --- [5秒任务] 串口报告 ---
   if (millis() - last5sSerial >= 5000) {
-    Serial.printf("[SYSTEM] Time:%s | GPS:%s | SD:%s | CAM:%s\n", 
+    Serial.printf("[SYSTEM] Time:%s | GPS:%s | SD Free:%s | CAM:%s\n", 
                   getUTCNow().c_str(), 
                   timeSynced ? "SYNCED" : "SEARCHING...", 
-                  sdOK ? "OK" : "ERR", 
-                  camOK ? "OK" : "ERR"); // 增加了摄像头状态显示
+                  getSDFreeGB().c_str(), 
+                  camOK ? "OK" : "ERR");
     last5sSerial = millis();
   }
 
-  // OLED 页面轮播
+  // OLED 轮播逻辑
   if (millis() - lastPageSwitch > 4000) {
     displayPage = (displayPage + 1) % 3;
     lastPageSwitch = millis();
   }
-}
-
-void updateDisplay() {
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  switch (displayPage) {
-    case 0:
-      display.printf("ID: %s\n", deviceID);
-      display.printf("UTC: %s\n", getUTCNow().c_str());
-      display.printf("GPS: %s\n", timeSynced ? "LOCKED" : "WAIT FIX...");
-      display.printf("SD:%s  CAM:%s", sdOK ? "OK" : "ERR", camOK ? "OK" : "ERR");
-      break;
-    case 1:
-      display.printf("SAT: %d  SPD:%.1f\n", gps.satellites.value(), gps.speed.kmph());
-      display.printf("LAT: %.4f\n", gps.location.lat());
-      display.printf("LNG: %.4f\n", gps.location.lng());
-      display.printf("ALT: %.0fm", gps.altitude.meters());
-      break;
-    case 2:
-      sensors_event_t h_aht, t_aht; aht.getEvent(&h_aht, &t_aht);
-      display.printf("TEMP: %.1f C\n", t_aht.temperature);
-      display.printf("HUMI: %.1f %%\n", h_aht.relative_humidity);
-      display.printf("PRES: %.1f hPa\n", bmp.readPressure() / 100.0);
-      display.print("REC: SEPARATE MODE");
-      break;
-  }
-  display.display();
 }
