@@ -77,12 +77,8 @@ unsigned long lastPageSwitch = 0;
 // 修正后的容量计算函数
 void updateSDSpace() {
   if (!sdOK) return;
-  
-  // 使用修正后的函数名: freeClusterCount()
   uint32_t freeClusters = sd.freeClusterCount();
-  
   if (freeClusters != (uint32_t)-1) {
-    // 剩余字节 = 剩余簇数 * 每簇扇区数 * 512 字节
     uint64_t freeBytes = (uint64_t)freeClusters * sd.sectorsPerCluster() * 512;
     sdFreeGB = (float)freeBytes / (1024.0 * 1024.0 * 1024.0);
   }
@@ -125,12 +121,41 @@ void logToSD(String type, String data) {
   char fileName[40];
   snprintf(fileName, sizeof(fileName), "%s/%s_%02d.CSV", dir, type.c_str(), info.tm_hour);
   
-  // 以读写/创建/追加模式打开文件
   if (f_log.open(fileName, O_RDWR | O_CREAT | O_AT_END)) {
     char tStr[15];
     strftime(tStr, sizeof(tStr), "%H:%M:%S", &info);
     f_log.printf("%s,%s\n", tStr, data.c_str());
     f_log.close();
+  }
+}
+
+// === 新增：在 SD 卡生成 README 描述文件 ===
+void createReadmeOnSD() {
+  if (!sdOK) return;
+  FsFile f_readme;
+  // 使用截断写入模式，每次开机都会更新这个文件，确保 ID 是正确的
+  if (f_readme.open("/README.txt", O_WRONLY | O_CREAT | O_TRUNC)) {
+    f_readme.println("========================================");
+    f_readme.println("       Environment & Motion Logger      ");
+    f_readme.println("========================================");
+    f_readme.printf("Device ID (MAC): %s\n\n", deviceID);
+    
+    f_readme.println("--- Data Formats ---");
+    f_readme.println("Logs are saved in /YYYYMMDD/ folders.");
+    f_readme.println("Every line starts with the UTC Time (HH:MM:SS).\n");
+    
+    f_readme.println("[1] GPS Data (GPS_HH.CSV)");
+    f_readme.println("Format: Time, Latitude, Longitude, Speed(km/h), HDOP, Satellites");
+    
+    f_readme.println("\n[2] IMU Data (IMU_HH.CSV)");
+    f_readme.println("Format: Time, Accel_X(g), Accel_Y(g), Accel_Z(g)");
+    
+    f_readme.println("\n[3] Air Quality Data (AIR_HH.CSV)");
+    f_readme.println("Format: Time, PM2.5, PM10, VOC, Temperature(C), Humidity(%)");
+    
+    f_readme.println("========================================");
+    f_readme.close();
+    Serial.println("README.txt generated on SD Card.");
   }
 }
 
@@ -153,7 +178,6 @@ void handleAirSensor() {
     for (int i = 0; i < 16; i++) sum += buf[i];
     
     if (sum == buf[16]) {
-      // 更新实时数据用于显示
       airData.voc  = (buf[6] << 8) | buf[7];
       airData.pm25 = (buf[8] << 8) | buf[9];
       airData.pm10 = (buf[10] << 8) | buf[11];
@@ -162,7 +186,6 @@ void handleAirSensor() {
       airData.temp = t_val;
       airData.humi = buf[14] + (float)buf[15] / 10.0;
 
-      // 累加数据用于 1 分钟均值
       airAggr.pm25Sum += airData.pm25;
       airAggr.pm10Sum += airData.pm10;
       airAggr.vocSum  += airData.voc;
@@ -182,25 +205,22 @@ void updateDisplay() {
   display.setCursor(0, 0);
 
   switch (displayPage) {
-    case 0: { // 系统概览
+    case 0: { 
       display.printf("ID:%s\n", deviceID);
       display.printf("UTC:%s\n", getUTCNow().c_str());
-      if (sdOK) {
-        display.printf("Free:%.2f GB\n", sdFreeGB);
-      } else {
-        display.println("SD: ERROR");
-      }
+      if (sdOK) display.printf("Free:%.2f GB\n", sdFreeGB);
+      else display.println("SD: ERROR");
       display.printf("Mode:%s", isMoving ? "MOVING" : "STATIC");
       break;
     }
-    case 1: { // 定位信息
-      display.printf("Sats:%d Spd:%.1f km/h\n", gps.satellites.value(), gps.speed.kmph());
+    case 1: { 
+      display.printf("Sats:%d HDOP:%.1f\n", gps.satellites.value(), gps.hdop.hdop());
+      display.printf("Spd:%.1f km/h\n", gps.speed.kmph());
       display.printf("Lat:%.4f\n", gps.location.lat());
       display.printf("Lng:%.4f\n", gps.location.lng());
-      display.printf("Sync:%s", timeSynced ? "OK" : "WAIT");
       break;
     }
-    case 2: { // 环境质量
+    case 2: { 
       display.printf("PM2.5:%d  PM10:%d\n", airData.pm25, airData.pm10);
       display.printf("VOC:%d\n", airData.voc);
       display.printf("T:%.1fC  H:%.1f%%\n", airData.temp, airData.humi);
@@ -214,8 +234,10 @@ void updateDisplay() {
 
 void setup() {
   Serial.begin(115200);
+  
+  // 优化：采用完整 MAC 生成 12 位唯一序列号，减少撞号几率
   uint64_t mac = ESP.getEfuseMac();
-  sprintf(deviceID, "%08X", (uint32_t)mac);
+  sprintf(deviceID, "%04X%08X", (uint16_t)(mac >> 32), (uint32_t)mac);
 
   I2C_OLED.begin(I2C0_SDA, I2C0_SCL, 400000); 
   I2C_MPU.begin(I2C1_SDA, I2C1_SCL, 400000); 
@@ -227,12 +249,12 @@ void setup() {
     mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
   }
 
-  // 初始化 SPI 和 SdFat (支持 exFAT)
+  // 初始化 SPI 和 SdFat
   sdSPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
-  // 使用 SdSpiConfig 配置，16MHz 对大容量卡兼容性最好
   if (sd.begin(SdSpiConfig(SD_CS, SHARED_SPI, SD_SCK_MHZ(16), &sdSPI))) {
     sdOK = true;
     updateSDSpace(); 
+    createReadmeOnSD(); // 增加：创建并写入 README.txt
   } else {
     Serial.println("SD Card Error (exFAT?)");
   }
@@ -248,16 +270,13 @@ void setup() {
 }
 
 void loop() {
-  // 处理传感器流
   while (GPS_Serial.available() > 0) gps.encode(GPS_Serial.read());
   handleAirSensor();
 
-  // 时间同步
   if (!timeSynced || (millis() - lastTimeSync >= 600000)) {
     syncTimeViaGPS();
   }
 
-  // 状态判断
   isMoving = (gps.speed.kmph() > 1.5);
 
   // 1 秒高频任务
@@ -265,7 +284,14 @@ void loop() {
     if (isMoving && timeSynced) {
       readMPU();
       String imuStr = String(motionData.ax) + "," + String(motionData.ay) + "," + String(motionData.az);
-      String gpsStr = String(gps.location.lat(), 6) + "," + String(gps.location.lng(), 6) + "," + String(gps.speed.kmph(), 1);
+      
+      // 增加：GPS 字符串内包含 HDOP 和 卫星数
+      String gpsStr = String(gps.location.lat(), 6) + "," + 
+                      String(gps.location.lng(), 6) + "," + 
+                      String(gps.speed.kmph(), 1) + "," +
+                      String(gps.hdop.hdop(), 1) + "," + 
+                      String(gps.satellites.value());
+                      
       logToSD("IMU", imuStr);
       logToSD("GPS", gpsStr);
     }
@@ -275,7 +301,6 @@ void loop() {
   // 1 分钟加权存储任务
   if (millis() - last1mTask >= 60000) {
     if (timeSynced && airAggr.sampleCount > 0) {
-      // 计算这一分钟的平均值
       float avgPM25 = (float)airAggr.pm25Sum / airAggr.sampleCount;
       float avgPM10 = (float)airAggr.pm10Sum / airAggr.sampleCount;
       float avgVOC  = (float)airAggr.vocSum / airAggr.sampleCount;
@@ -286,12 +311,10 @@ void loop() {
                       String(avgVOC, 1) + "," + String(avgTemp, 1) + "," + String(avgHumi, 1);
       logToSD("AIR", airStr);
 
-      // 重置累加器
       airAggr.pm25Sum = 0; airAggr.pm10Sum = 0; airAggr.vocSum = 0;
       airAggr.tempSum = 0; airAggr.humiSum = 0;
       airAggr.sampleCount = 0;
       
-      // 更新容量显示
       updateSDSpace();
     }
     last1mTask = millis();

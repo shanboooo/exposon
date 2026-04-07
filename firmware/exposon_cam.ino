@@ -42,57 +42,53 @@ unsigned long lastPageSwitch = 0;
 
 // --- 融合逻辑相关变量 ---
 float last_accel_mag = 0;
-float motion_score = 0;    // 运动震动强度得分
-#define MOTION_THRESHOLD 0.4  // 震动判定阈值 (根据实际抖动调整)
-#define HDOP_OK 2.5           // 理想的卫星精度阈值
+float motion_score = 0;    
+#define MOTION_THRESHOLD 0.4  // 震动灵敏度阈值
+#define HDOP_OK 2.5           // GPS 精度阈值
 
-// --- 工具函数：获取 SD 卡剩余容量 ---
+// --- 获取 SD 卡剩余容量 ---
 String getSDFreeGB() {
   if (!sdOK) return "ERR";
   uint64_t freeBytes = SD_MMC.totalBytes() - SD_MMC.usedBytes();
   return String((double)freeBytes / 1073741824.0, 1) + "G"; 
 }
 
-// --- MPU6050 运动检测逻辑 ---
-bool isPhysicallyMoving() {
+// --- 自动生成 README (供 Python 脚本识别 Device ID) ---
+void writeReadme() {
+  if (!sdOK) return;
+  if (!SD_MMC.exists("/README.TXT")) {
+    File f = SD_MMC.open("/README.TXT", FILE_WRITE);
+    if (f) {
+      f.println("==========================================");
+      f.println("   ESP32-CAM TELEMETRY SYSTEM README      ");
+      f.println("==========================================");
+      f.printf("Device ID: %s\n", deviceID);
+      f.println("Data Logic: Motion-Triggered (GPS/IMU/CAM)");
+      f.close();
+      Serial.println("[SD] README.TXT Created");
+    }
+  }
+}
+
+// --- 运动状态综合判定 ---
+bool isVehicleMoving() {
+  // 获取 MPU6050 数据计算震动强度
   sensors_event_t a, g, t;
   mpu.getEvent(&a, &g, &t);
-  
-  // 计算三轴加速度模长 (Vector Magnitude)
   float accel_mag = sqrt(sq(a.acceleration.x) + sq(a.acceleration.y) + sq(a.acceleration.z));
-  
-  // 计算震动增量 (当前与上一次的差异)
   float delta = abs(accel_mag - last_accel_mag);
   last_accel_mag = accel_mag;
+  motion_score = (motion_score * 0.8) + (delta * 0.2); // 平滑滤波
 
-  // 简单滤波，平滑震动得分
-  motion_score = (motion_score * 0.8) + (delta * 0.2);
-  
-  return (motion_score > MOTION_THRESHOLD);
+  // 判断条件：必须有时间同步，且检测到震动，且 GPS 信号显示在走动或精度极佳
+  bool hasPhysicalMotion = (motion_score > MOTION_THRESHOLD);
+  bool hasGPSSpeed = gps.speed.kmph() > 1.5;
+  bool hasGoodSignal = gps.hdop.hdop() < HDOP_OK;
+
+  return (timeSynced && hasPhysicalMotion && (hasGPSSpeed || hasGoodSignal));
 }
 
-// --- 综合判定拍照逻辑 ---
-bool shouldTakeSnapshot() {
-  if (!camOK || !timeSynced) return false;
-
-  bool hasPhysicalMotion = isPhysicallyMoving(); // MPU6050 检测到震动
-  bool hasGPSSpeed = gps.speed.kmph() > 1.5;     // GPS 检测到移动速度
-  bool hasGoodSignal = gps.hdop.hdop() < HDOP_OK; // 信号质量是否足以信任
-
-  // 融合逻辑：必须有真实的物理震动，且 GPS 信号显示在移动或精度极高
-  return (hasPhysicalMotion && (hasGPSSpeed || hasGoodSignal));
-}
-
-// --- 获取 UTC 时间字符串 ---
-String getUTCNow() {
-  struct tm info;
-  if (!getLocalTime(&info) || info.tm_year < 126) return "WAITING..."; 
-  char buf[20];
-  strftime(buf, sizeof(buf), "%H:%M:%S", &info);
-  return String(buf);
-}
-
-// --- 存储逻辑 ---
+// --- CSV 存储逻辑 ---
 void logToSD(String type, String data) {
   if (!sdOK || !timeSynced) return; 
   struct tm info;
@@ -107,56 +103,48 @@ void logToSD(String type, String data) {
   
   File f = SD_MMC.open(fileName, FILE_APPEND);
   if (f) {
-    // 自动在每条数据前加上标准 UTC 时间
     f.printf("%02d:%02d:%02d,%s\n", info.tm_hour, info.tm_min, info.tm_sec, data.c_str());
     f.close();
   }
 }
 
-// --- 拍照函数 (使用标准 UTC 时间) ---
+// --- 拍照逻辑 ---
 void capturePhoto() {
   camera_fb_t * fb = esp_camera_fb_get();
   if (!fb) return;
-
   struct tm info;
   getLocalTime(&info);
-  
   char path[64];
-  // 命名格式：/日期/IMG_时分秒_HDOP值.jpg (方便回溯信号质量)
   strftime(path, sizeof(path), "/%Y%m%d/IMG_%H%M%S", &info);
   String finalPath = String(path) + "_H" + String((int)gps.hdop.hdop()) + ".jpg";
-
   File f = SD_MMC.open(finalPath, FILE_WRITE);
   if (f) {
     f.write(fb->buf, fb->len);
     f.close();
-    Serial.printf("[CAM] Saved: %s\n", finalPath.c_str());
+    Serial.printf("[CAM] Captured: %s\n", finalPath.c_str());
   }
   esp_camera_fb_return(fb);
 }
 
-// --- OLED 显示更新 ---
+// --- OLED 界面渲染 ---
 void updateDisplay() {
   display.clearDisplay();
   display.setCursor(0, 0);
   switch (displayPage) {
     case 0:
       display.printf("ID: %s\n", deviceID);
-      display.printf("UTC: %s\n", getUTCNow().c_str());
-      display.printf("GPS: %s\n", timeSynced ? "LOCKED" : "WAIT FIX...");
+      display.printf("GPS: %s\n", timeSynced ? "LOCKED" : "WAIT...");
       display.printf("SD:%s  CAM:%s", getSDFreeGB().c_str(), camOK ? "OK" : "ERR");
       break;
-    case 1: // GPS 增强页面
+    case 1: 
       display.printf("SAT: %d  HDOP: %.1f\n", gps.satellites.value(), gps.hdop.hdop());
       display.printf("SPD: %.1f km/h\n", gps.speed.kmph());
       display.printf("LAT: %.4f\n", gps.location.lat());
-      display.printf("LNG: %.4f\n", gps.location.lng());
       break;
     case 2:
-      sensors_event_t h_aht, t_aht; aht.getEvent(&h_aht, &t_aht);
-      display.printf("TEMP: %.1f C\n", t_aht.temperature);
-      display.printf("HUMI: %.1f %%\n", h_aht.relative_humidity);
-      display.printf("PRES: %.1f hPa\n", bmp.readPressure() / 100.0);
+      sensors_event_t h, t; aht.getEvent(&h, &t);
+      display.printf("TEMP: %.1f C\n", t.temperature);
+      display.printf("HUMI: %.1f %%\n", h.relative_humidity);
       display.printf("MOTION: %.2f", motion_score);
       break;
   }
@@ -177,11 +165,14 @@ void setup() {
   display.display();
 
   aht.begin();
-  if (!bmp.begin(0x77)) { if (!bmp.begin(0x76)) Serial.println("BMP280 Fail"); }
+  if (!bmp.begin(0x77)) { if (!bmp.begin(0x76)) Serial.println("BMP Fail"); }
   mpu.begin();
 
   SD_MMC.setPins(SD_CLK, SD_CMD, SD_D0);
-  if (SD_MMC.begin("/sdcard", true)) sdOK = true;
+  if (SD_MMC.begin("/sdcard", true)) {
+    sdOK = true;
+    writeReadme();
+  }
 
   camera_config_t cfg;
   cfg.pin_pwdn = -1; cfg.pin_reset = -1; cfg.pin_xclk = 15;
@@ -202,7 +193,7 @@ void setup() {
 void loop() {
   while (GPS_Serial.available() > 0) gps.encode(GPS_Serial.read());
 
-  // --- 时间同步 ---
+  // --- GPS 时间同步逻辑 ---
   if (!timeSynced && gps.date.isValid() && gps.date.year() >= 2024) {
     struct tm t;
     t.tm_year = gps.date.year() - 1900;
@@ -217,44 +208,46 @@ void loop() {
     timeSynced = true; 
   }
 
-  // --- [1秒定时任务] ---
+  // --- 运动判定状态更新 ---
+  bool isMoving = isVehicleMoving();
+
+  // --- [1秒定时任务]：记录 GPS 和 IMU ---
   if (millis() - last1sLog >= 1000) {
-    if (timeSynced && gps.location.isValid()) {
-      // 核心修改：记录位置的同时，记录 HDOP(信号质量指标) 和 卫星数
-      String gpsData = String(gps.location.lat(), 6) + "," + 
+    if (isMoving) {
+      // 记录 GPS (Lat, Lng, Speed, HDOP, Sats)
+      if (gps.location.isValid()) {
+        logToSD("GPS", String(gps.location.lat(), 6) + "," + 
                        String(gps.location.lng(), 6) + "," + 
                        String(gps.speed.kmph(), 1) + "," +
                        String(gps.hdop.hdop(), 1) + "," + 
-                       String(gps.satellites.value());
-      logToSD("GPS", gpsData);
+                       String(gps.satellites.value()));
+      }
+      // 记录 IMU (ax, ay, az)
+      sensors_event_t a, g, t;
+      mpu.getEvent(&a, &g, &t);
+      logToSD("IMU", String(a.acceleration.x, 2) + "," + 
+                     String(a.acceleration.y, 2) + "," + 
+                     String(a.acceleration.z, 2));
     }
     updateDisplay();
     last1sLog = millis();
   }
 
-  // --- [动态拍照判断任务] ---
-  // 根据运动强度决定是否拍照，且每 2.5 秒最多拍一张，避免 SD 卡写入阻塞
-  if (shouldTakeSnapshot() && (millis() - lastPhotoTime >= 2500)) {
+  // --- [动态拍照判断] ---
+  if (camOK && isMoving && (millis() - lastPhotoTime >= 2500)) {
     capturePhoto();
     lastPhotoTime = millis();
   }
 
-  // --- [1分钟环境记录] ---
+  // --- [1分钟环境记录]：环境数据定时记录，不限运动 ---
   if (timeSynced && (millis() - last1mEnv >= 60000)) {
-    sensors_event_t h_aht, t_aht; aht.getEvent(&h_aht, &t_aht);
-    logToSD("ENV", String(t_aht.temperature, 1) + "," + String(h_aht.relative_humidity, 1));
+    sensors_event_t h, t; aht.getEvent(&h, &t);
+    logToSD("ENV", String(t.temperature, 1) + "," + String(h.relative_humidity, 1));
     last1mEnv = millis();
   }
 
-  // --- [5秒串口状态报告] ---
-  if (millis() - last5sSerial >= 5000) {
-    Serial.printf("[LOG] HDOP:%.1f | SAT:%d | Score:%.2f\n", 
-                  gps.hdop.hdop(), gps.satellites.value(), motion_score);
-    last5sSerial = millis();
-  }
-
-  // OLED 轮播
-  if (millis() - lastPageSwitch > 4000) {
+  // OLED 页面自动轮播 (8秒)
+  if (millis() - lastPageSwitch > 8000) {
     displayPage = (displayPage + 1) % 3;
     lastPageSwitch = millis();
   }
