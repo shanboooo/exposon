@@ -7,7 +7,7 @@
 ![Platform](https://img.shields.io/badge/Platform-ESP32--S3-E7352C)
 ![License](https://img.shields.io/badge/License-Apache%202.0-1E88E5)
 ![Open Source](https://img.shields.io/badge/Open%20Source-Cam%20%2B%20Air-34A853)
-![iOS App](https://img.shields.io/badge/iOS%20App-Ready-111111)
+![iOS App](https://img.shields.io/badge/iOS%20App-App%20Store-111111)
 ![Roadmap](https://img.shields.io/badge/Roadmap-THM%20Source%20Later-F9A825)
 
 **Mobile sensing devices for urban environment research**  
@@ -18,12 +18,12 @@
 ## Open-Source Status | 开源状态
 
 This repository currently includes the open-source materials for **Exposon Cam** and **Exposon Air**.  
-**Exposon Track** is now available as an iOS app.  
+**Exposon Track** is now available on the [App Store](https://apps.apple.com/cn/app/exposon-track/id6761625047).  
 **Exposon Thm** will be open-sourced later.  
 The source code for **Exposon Track** will also be released later.
 
 本仓库目前开放 **Exposon Cam** 和 **Exposon Air** 的相关内容。  
-**Exposon Track** 已作为 iOS 软件完成。  
+**Exposon Track** 已上架 [App Store](https://apps.apple.com/cn/app/exposon-track/id6761625047)。  
 **Exposon Thm** 将在后续开源。  
 **Exposon Track** 的源码也将在后续开源。
 
@@ -148,6 +148,9 @@ Exposon Track is built for route recording in research, commuting, and outdoor s
 It supports adjustable logging frequency, stable background recording, and easy track export.
 
 Exposon Track 面向科研外业、通勤与户外场景，支持记录频率调节、后台稳定记录与轨迹导出。
+
+[Download on the App Store](https://apps.apple.com/cn/app/exposon-track/id6761625047)  
+[在 App Store 查看](https://apps.apple.com/cn/app/exposon-track/id6761625047)
 
 ### Key Features | 主要功能
 

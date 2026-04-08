@@ -487,6 +487,43 @@
             color: #424245;
         }
 
+        .app-actions {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-top: 24px;
+        }
+
+        .app-cta {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 46px;
+            padding: 0 18px;
+            border-radius: 999px;
+            background: #111111;
+            color: #ffffff;
+            text-decoration: none;
+            font-size: 0.92rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+            box-shadow: 0 14px 30px rgba(17, 17, 17, 0.12);
+        }
+
+        .app-cta:hover {
+            background: #1f1f22;
+            transform: translateY(-1px);
+            box-shadow: 0 18px 34px rgba(17, 17, 17, 0.16);
+        }
+
+        .app-store-meta {
+            font-size: 0.88rem;
+            line-height: 1.5;
+            color: var(--muted);
+        }
+
         .app-feature-list {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1078,8 +1115,8 @@
                         <h2 class="section-title">Exposon Track</h2>
                     </div>
                     <p class="section-copy">
-                        <span lang="zh">一个专注 GPS 轨迹和出行记录的工具，适合科研外业、通勤和户外记录。</span>
-                        <span lang="en">A GPS track and travel logging tool designed for research fieldwork, commuting, and outdoor use.</span>
+                        <span lang="zh">一个用于 GPS 轨迹与行程记录的 iOS 工具，现已上架 App Store，适合科研外业、通勤和户外记录。</span>
+                        <span lang="en">An iOS tool for GPS track and trip logging, now on the App Store for research fieldwork, commuting, and outdoor use.</span>
                     </p>
                 </div>
 
@@ -1091,15 +1128,25 @@
                                 <div>
                                     <h3>Exposon Track</h3>
                                     <div class="review-pill">
-                                        <span lang="zh">iOS 应用已完成</span>
-                                        <span lang="en">iOS App Ready</span>
+                                        <span lang="zh">现已上架 App Store</span>
+                                        <span lang="en">Now on the App Store</span>
                                     </div>
                                 </div>
                             </div>
                             <p class="app-body">
-                                <span lang="zh">支持调节记录频率、后台稳定运行和轨迹导出，方便把路线记录接入研究流程。</span>
-                                <span lang="en">It supports adjustable logging frequency, stable background recording, and easy track export for research workflows.</span>
+                                <span lang="zh">支持自定义记录频率、后台持续定位和轨迹导出，方便把路线记录直接接入研究流程。</span>
+                                <span lang="en">It supports adjustable logging frequency, stable background location logging, and easy track export for research workflows.</span>
                             </p>
+                            <div class="app-actions">
+                                <a class="app-cta" href="https://apps.apple.com/cn/app/exposon-track/id6761625047" target="_blank" rel="noreferrer">
+                                    <span lang="zh">在 App Store 查看</span>
+                                    <span lang="en">View on the App Store</span>
+                                </a>
+                                <div class="app-store-meta">
+                                    <span lang="zh">免费 · iPhone / iPad</span>
+                                    <span lang="en">Free · iPhone / iPad</span>
+                                </div>
+                            </div>
                             <div class="app-feature-list">
                                 <div class="app-feature">
                                     <strong><span lang="zh">记录频率</span><span lang="en">Sampling</span></strong>
